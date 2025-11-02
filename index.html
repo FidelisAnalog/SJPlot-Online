@@ -320,10 +320,14 @@ def riaaiir(sig, Fs, mode, inv):
 def process_audio():
     try:
         console.log("Processing...")
-        wav0_bytes = bytes(file_data['file0'])
-        config = file_data['config']
         
-        with io.BytesIO(wav0_bytes) as wav_io:
+        # Get data from JavaScript
+        import js
+        file0_data = bytes(js.js_file0_data)
+        file1_data = bytes(js.js_file1_data) if js.js_file1_data else None
+        config = js.js_config.to_py()
+        
+        with io.BytesIO(file0_data) as wav_io:
             Fs, audio0 = wavfile.read(wav_io)
         
         if audio0.dtype == np.int16:
@@ -337,10 +341,9 @@ def process_audio():
         
         fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(audio0, Fs, config)
         
-        has_file1 = file_data['file1'] is not None
+        has_file1 = file1_data is not None
         if has_file1:
-            wav1_bytes = bytes(file_data['file1'])
-            with io.BytesIO(wav1_bytes) as wav_io:
+            with io.BytesIO(file1_data) as wav_io:
                 Fs1, audio1 = wavfile.read(wav_io)
             if audio1.dtype == np.int16:
                 audio1 = audio1.astype(np.float32) / 32768.0
@@ -446,6 +449,12 @@ def process_audio():
         # Re-enable button by calling JS function
         from js import updateAnalyzeButtonState
         updateAnalyzeButtonState()
+
+# Make the function available globally for JavaScript to call
+import js
+js.window.pyProcessAudio = process_audio
+
+console.log("Python environment ready! PyScript functions available.")
     </py-script>
 
     <script>
@@ -640,6 +649,12 @@ def process_audio():
                 return;
             }
             
+            // Check if Python function is available
+            if (!window.pyProcessAudio) {
+                alert('Python environment not ready. Please wait a moment and try again.');
+                return;
+            }
+            
             document.getElementById('status').textContent = 'Processing...';
             document.getElementById('status').className = 'info';
             document.getElementById('loading').classList.add('active');
@@ -653,79 +668,15 @@ def process_audio():
             };
             
             try {
+                console.log('Calling Python function directly...');
+                
                 // Set global JS variables that Python can access
                 window.js_file0_data = file0Data.bytes;
                 window.js_file1_data = file1Data ? file1Data.bytes : null;
                 window.js_config = config;
                 
-                console.log('Starting analysis with existing Python environment...');
-                
-                // Method 1: Try using the py-script element directly 
-                const pyScriptElement = document.querySelector('py-script');
-                if (pyScriptElement && pyScriptElement.interpreter) {
-                    console.log('Using existing py-script interpreter...');
-                    pyScriptElement.interpreter.runPython(`
-import js
-file_data['file0'] = bytes(js.js_file0_data)
-file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
-file_data['config'] = js.js_config.to_py()
-process_audio()
-                    `);
-                    return;
-                }
-                
-                // Method 2: Check for PyScript runtime in window
-                const possibleRuntimes = ['pyscript', 'pyodide', '_pyscript', '_pyodide'];
-                for (let runtimeName of possibleRuntimes) {
-                    const runtime = window[runtimeName];
-                    if (runtime && runtime.runPython) {
-                        console.log(`Using ${runtimeName} runtime...`);
-                        runtime.runPython(`
-import js
-file_data['file0'] = bytes(js.js_file0_data)
-file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
-file_data['config'] = js.js_config.to_py()
-process_audio()
-                        `);
-                        return;
-                    }
-                }
-                
-                // Method 3: Use a hidden div to run Python (faster than new script tag)
-                console.log('Using hidden div method...');
-                let hiddenPyDiv = document.getElementById('hidden-py-runner');
-                if (!hiddenPyDiv) {
-                    hiddenPyDiv = document.createElement('div');
-                    hiddenPyDiv.id = 'hidden-py-runner';
-                    hiddenPyDiv.style.display = 'none';
-                    hiddenPyDiv.innerHTML = `<py-script>
-# This will be replaced with actual code
-pass
-</py-script>`;
-                    document.body.appendChild(hiddenPyDiv);
-                    
-                    // Wait a moment for it to initialize, then update it
-                    setTimeout(() => {
-                        const hiddenScript = hiddenPyDiv.querySelector('py-script');
-                        hiddenScript.textContent = `
-import js
-file_data['file0'] = bytes(js.js_file0_data)
-file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
-file_data['config'] = js.js_config.to_py()
-process_audio()
-                        `;
-                    }, 100);
-                } else {
-                    // Reuse existing hidden div
-                    const hiddenScript = hiddenPyDiv.querySelector('py-script');
-                    hiddenScript.textContent = `
-import js
-file_data['file0'] = bytes(js.js_file0_data)
-file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
-file_data['config'] = js.js_config.to_py()
-process_audio()
-                    `;
-                }
+                // Call the Python function directly - no PyScript reinitialization!
+                window.pyProcessAudio();
                 
             } catch (error) {
                 console.error('Analysis error:', error);
