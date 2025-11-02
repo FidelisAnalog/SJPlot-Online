@@ -653,22 +653,18 @@ def process_audio():
             };
             
             try {
-                console.log('=== Debugging PyScript API ===');
-                console.log('window.pyscript:', window.pyscript);
-                console.log('window.pyodide:', window.pyodide);
-                console.log('Available on window:', Object.keys(window).filter(k => k.includes('py')));
-                
-                // Try the modern PyScript approach - create global JS variables that Python can access
+                // Set global JS variables that Python can access
                 window.js_file0_data = file0Data.bytes;
                 window.js_file1_data = file1Data ? file1Data.bytes : null;
                 window.js_config = config;
                 
-                console.log('Set global JS variables, now trying to call Python...');
+                console.log('Starting analysis with existing Python environment...');
                 
-                // Method 1: Try using pyscript.runtime
-                if (window.pyscript && window.pyscript.runtime) {
-                    console.log('Trying pyscript.runtime...');
-                    window.pyscript.runtime.runPython(`
+                // Method 1: Try using the py-script element directly 
+                const pyScriptElement = document.querySelector('py-script');
+                if (pyScriptElement && pyScriptElement.interpreter) {
+                    console.log('Using existing py-script interpreter...');
+                    pyScriptElement.interpreter.runPython(`
 import js
 file_data['file0'] = bytes(js.js_file0_data)
 file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
@@ -678,38 +674,58 @@ process_audio()
                     return;
                 }
                 
-                // Method 2: Try the newest API - check for PyScript main module
-                const pyScriptTags = document.querySelectorAll('py-script');
-                if (pyScriptTags.length > 0) {
-                    console.log('Found py-script tags, trying to inject code...');
+                // Method 2: Check for PyScript runtime in window
+                const possibleRuntimes = ['pyscript', 'pyodide', '_pyscript', '_pyodide'];
+                for (let runtimeName of possibleRuntimes) {
+                    const runtime = window[runtimeName];
+                    if (runtime && runtime.runPython) {
+                        console.log(`Using ${runtimeName} runtime...`);
+                        runtime.runPython(`
+import js
+file_data['file0'] = bytes(js.js_file0_data)
+file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
+file_data['config'] = js.js_config.to_py()
+process_audio()
+                        `);
+                        return;
+                    }
+                }
+                
+                // Method 3: Use a hidden div to run Python (faster than new script tag)
+                console.log('Using hidden div method...');
+                let hiddenPyDiv = document.getElementById('hidden-py-runner');
+                if (!hiddenPyDiv) {
+                    hiddenPyDiv = document.createElement('div');
+                    hiddenPyDiv.id = 'hidden-py-runner';
+                    hiddenPyDiv.style.display = 'none';
+                    hiddenPyDiv.innerHTML = `<py-script>
+# This will be replaced with actual code
+pass
+</py-script>`;
+                    document.body.appendChild(hiddenPyDiv);
                     
-                    // Create a new script element to run our code
-                    const newScript = document.createElement('py-script');
-                    newScript.textContent = `
+                    // Wait a moment for it to initialize, then update it
+                    setTimeout(() => {
+                        const hiddenScript = hiddenPyDiv.querySelector('py-script');
+                        hiddenScript.textContent = `
+import js
+file_data['file0'] = bytes(js.js_file0_data)
+file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
+file_data['config'] = js.js_config.to_py()
+process_audio()
+                        `;
+                    }, 100);
+                } else {
+                    // Reuse existing hidden div
+                    const hiddenScript = hiddenPyDiv.querySelector('py-script');
+                    hiddenScript.textContent = `
 import js
 file_data['file0'] = bytes(js.js_file0_data)
 file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
 file_data['config'] = js.js_config.to_py()
 process_audio()
                     `;
-                    document.body.appendChild(newScript);
-                    return;
                 }
-                
-                // Method 3: Try using eval approach (last resort)
-                if (typeof pyodide !== 'undefined') {
-                    console.log('Trying global pyodide...');
-                    pyodide.runPython(`
-import js
-file_data['file0'] = bytes(js.js_file0_data)
-file_data['file1'] = bytes(js.js_file1_data) if js.js_file1_data else None
-file_data['config'] = js.js_config.to_py()
-process_audio()
-                    `);
-                    return;
-                }
-                
-                throw new Error('Could not find any working PyScript API method. PyScript may have changed APIs.');
                 
             } catch (error) {
                 console.error('Analysis error:', error);
