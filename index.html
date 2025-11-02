@@ -482,15 +482,19 @@ def process_audio():
         
         // Listen for PyScript events properly
         document.addEventListener('py:ready', function() {
-            console.log('py:ready event fired');
+            console.log('py:ready event fired - PyScript is ready!');
             pyScriptReady = true;
             updateAnalyzeButtonState();
+            // Stop any ongoing polling
+            pollCount = 999; 
         });
         
         document.addEventListener('py:all-done', function() {
-            console.log('py:all-done event fired');
+            console.log('py:all-done event fired - PyScript is ready!');
             pyScriptReady = true;
             updateAnalyzeButtonState();
+            // Stop any ongoing polling
+            pollCount = 999;
         });
         
         // Also listen for other possible events
@@ -507,45 +511,46 @@ def process_audio():
         // More aggressive polling approach with detailed logging
         let pollCount = 0;
         function pollForPyScript() {
+            // If events already fired, stop polling
+            if (pyScriptReady) {
+                console.log('PyScript already ready, stopping poll');
+                return;
+            }
+            
             pollCount++;
             console.log(`Poll ${pollCount}: Checking PyScript status...`);
             console.log('window.pyscript exists:', !!window.pyscript);
             
+            // Check for newer PyScript API
             if (window.pyscript) {
                 console.log('window.pyscript keys:', Object.keys(window.pyscript));
-                console.log('window.pyscript.interpreter exists:', !!window.pyscript.interpreter);
-                
-                if (window.pyscript.interpreter) {
-                    console.log('PyScript interpreter found!');
-                    pyScriptReady = true;
-                    updateAnalyzeButtonState();
-                    return;
-                }
+                // In newer versions, just having pyscript object means it's ready
+                console.log('PyScript object found - assuming ready!');
+                pyScriptReady = true;
+                updateAnalyzeButtonState();
+                return;
             }
             
-            // Check for other PyScript indicators
-            if (window.pyodide) {
-                console.log('Pyodide found, checking if ready...');
-                if (window.pyodide.runPython) {
-                    console.log('Pyodide runPython available');
-                    pyScriptReady = true;
-                    updateAnalyzeButtonState();
-                    return;
-                }
+            // Check for Pyodide directly
+            if (window.pyodide && window.pyodide.runPython) {
+                console.log('Pyodide runPython available - PyScript is ready!');
+                pyScriptReady = true;
+                updateAnalyzeButtonState();
+                return;
             }
             
-            if (pollCount < 30) { // 30 second timeout
+            if (pollCount < 15) { // Reduced to 15 seconds since events should fire
                 setTimeout(pollForPyScript, 1000);
             } else {
-                console.error('PyScript polling timed out after 30 seconds');
-                document.getElementById('pyscriptStatus').innerHTML = `
-                    PyScript failed to initialize after 30 seconds.<br>
-                    Debug info: window.pyscript = ${!!window.pyscript}, window.pyodide = ${!!window.pyodide}<br>
-                    <a href="javascript:location.reload()">Refresh page</a> or 
-                    <a href="javascript:forcePyScriptReady()">Force Ready (for testing)</a>
-                `;
-                document.getElementById('pyscriptStatus').style.color = 'red';
-                document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed';
+                console.error('PyScript polling timed out, but events may have fired');
+                if (!pyScriptReady) {
+                    document.getElementById('pyscriptStatus').innerHTML = `
+                        PyScript polling timed out, but it may still be working.<br>
+                        <a href="javascript:forcePyScriptReady()">Force Ready (recommended)</a> or 
+                        <a href="javascript:location.reload()">Refresh page</a>
+                    `;
+                    document.getElementById('pyscriptStatus').style.color = 'orange';
+                }
             }
         }
         
@@ -629,7 +634,7 @@ def process_audio():
             if (!file0Data) { alert('Upload a file first'); return; }
             
             // Check if PyScript is ready
-            if (!pyScriptReady || !window.pyscript || !window.pyscript.interpreter) {
+            if (!pyScriptReady) {
                 alert('PyScript is still loading. Please wait a moment and try again.');
                 return;
             }
@@ -647,17 +652,28 @@ def process_audio():
             };
             
             try {
-                // Access Python's file_data dict
-                const pyFileData = window.pyscript.interpreter.globals.get('file_data');
-                pyFileData.set('file0', file0Data.bytes);
-                pyFileData.set('file1', file1Data ? file1Data.bytes : null);
-                pyFileData.set('config', config);
-                
-                // Call Python function
-                window.pyscript.interpreter.globals.get('process_audio')();
+                // For newer PyScript API, access globals differently
+                if (window.pyscript && window.pyscript.globals) {
+                    // New API
+                    const pyFileData = window.pyscript.globals.get('file_data');
+                    pyFileData.set('file0', file0Data.bytes);
+                    pyFileData.set('file1', file1Data ? file1Data.bytes : null);
+                    pyFileData.set('config', config);
+                    window.pyscript.globals.get('process_audio')();
+                } else if (window.pyodide) {
+                    // Direct Pyodide access
+                    window.pyodide.globals.set('file_data', {
+                        file0: file0Data.bytes,
+                        file1: file1Data ? file1Data.bytes : null,
+                        config: config
+                    });
+                    window.pyodide.runPython('process_audio()');
+                } else {
+                    throw new Error('PyScript API not found');
+                }
                 
             } catch (error) {
-                console.error(error);
+                console.error('Analysis error:', error);
                 document.getElementById('status').textContent = '❌ Error: ' + error.message;
                 document.getElementById('status').className = 'error';
                 document.getElementById('loading').classList.remove('active');
