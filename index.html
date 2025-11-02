@@ -411,7 +411,8 @@ def process_audio():
         plt.savefig(buf, format='png', dpi=192, bbox_inches='tight')
         buf.seek(0)
         img_data = base64.b64encode(buf.read()).decode()
-        plt.close()
+        # Don't call plt.close() - it causes issues in PyScript
+        plt.clf()  # Clear the current figure instead
         
         deltaadj = ao0[find_nearest(fo0, config['normalize'])]
         deltah0 = round(max(ao0 - deltaadj), 1)
