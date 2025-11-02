@@ -89,6 +89,7 @@
             display: none;
         }
         #status.info { background: #e3f2fd; color: #1976d2; display: block; }
+        #status.processing { background: #fff3e0; color: #f57c00; display: block; }
         #status.success { background: #e8f5e9; color: #388e3c; display: block; }
         #status.error { background: #ffebee; color: #c62828; display: block; }
         .file-info {
@@ -337,10 +338,16 @@ def process_audio():
     try:
         import time
         start_time = time.time()
+        
+        # Update UI immediately
+        document.getElementById('status').textContent = '🔄 Starting analysis...'
+        document.getElementById('status').className = 'processing'
+        
         console.log("Processing...")
         
         # Get data from JavaScript - optimize data conversion
         import js
+        document.getElementById('status').textContent = '🔄 Converting file data...'
         console.log("Converting file data...")
         data_start = time.time()
         
@@ -358,6 +365,7 @@ def process_audio():
         config = js.js_config.to_py()
         console.log(f"Data conversion took: {time.time() - data_start:.2f}s")
         
+        document.getElementById('status').textContent = '🔄 Reading audio files...'
         wav_start = time.time()
         console.log("Data conversion complete, reading WAV...")
         
@@ -376,11 +384,13 @@ def process_audio():
         console.log(f"Audio conversion took: {time.time() - convert_start:.2f}s")
         
         if config['riaa_mode'] != 0:
+            document.getElementById('status').textContent = '🔄 Applying RIAA filter...'
             riaa_start = time.time()
             console.log("Applying RIAA filter...")
             audio0 = riaaiir(audio0, Fs, config['riaa_mode'], config['riaa_inverse'])
             console.log(f"RIAA filtering took: {time.time() - riaa_start:.2f}s")
         
+        document.getElementById('status').textContent = '🔄 Analyzing frequency response...'
         plot_data_start = time.time()
         console.log("Creating plot data...")
         fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(audio0, Fs, config)
@@ -391,6 +401,7 @@ def process_audio():
         
         has_file1 = file1_data is not None
         if has_file1:
+            document.getElementById('status').textContent = '🔄 Processing second file...'
             file1_start = time.time()
             console.log("Processing second file...")
             with io.BytesIO(file1_data) as wav_io:
@@ -406,6 +417,7 @@ def process_audio():
             console.log(f"Second audio conversion took: {time.time() - convert1_start:.2f}s")
             
             if config['riaa_mode'] != 0:
+                document.getElementById('status').textContent = '🔄 Applying RIAA to second file...'
                 riaa1_start = time.time()
                 audio1 = riaaiir(audio1, Fs1, config['riaa_mode'], config['riaa_inverse'])
                 console.log(f"Second RIAA filtering took: {time.time() - riaa1_start:.2f}s")
@@ -416,6 +428,7 @@ def process_audio():
             console.log(f"Second plot data creation took: {time.time() - plot_data1_start:.2f}s")
             del audio1
         
+        document.getElementById('status').textContent = '🔄 Generating plot...'
         plot_start = time.time()
         console.log("Generating plot...")
         
