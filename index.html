@@ -262,21 +262,34 @@ def interpolate(f, a, minf, maxf, fstep):
     return f_out, a_out
 
 def createplotdata(signal, Fs, config, norm=[0]):
+    import time
+    start_time = time.time()
+    
     def process_chunk(signal, Fs, fmin, fmax, step, offset):
+        chunk_start = time.time()
         f, a, fx, ax, f2, a2, f3, a3 = rfft_full(signal, Fs, fmin, fmax, step)
+        console.log(f"    rfft_full({fmin}-{fmax}Hz) took: {time.time() - chunk_start:.3f}s")
+        
+        interp_start = time.time()
         f, a = interpolate(f, a, fmin, fmax, step)
         fx, ax = interpolate(fx, ax, fmin, fmax, step)
         f2, a2 = interpolate(f2, a2, fmin, fmax, step)
         f3, a3 = interpolate(f3, a3, fmin, fmax, step)
+        console.log(f"    interpolation took: {time.time() - interp_start:.3f}s")
+        
+        offset_start = time.time()
         a = [amp - offset for amp in a]
         ax = [amp - offset for amp in ax] if ax else []
         a2 = [amp - offset for amp in a2]
         a3 = [amp - offset for amp in a3]
+        console.log(f"    offset calculation took: {time.time() - offset_start:.3f}s")
         return f, a, fx, ax, f2, a2, f3, a3
     
     fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = [], [], [], [], [], [], [], []
     
+    console.log("  Processing frequency chunks...")
     for fmin, fmax, step, offset in [(20,45,5,26.03), (50,90,10,19.995), (100,980,20,13.99), (1000,20000,100,0)]:
+        console.log(f"  Processing chunk {fmin}-{fmax}Hz...")
         f, a, fx, ax, f2, a2, f3, a3 = process_chunk(signal, Fs, fmin, fmax, step, offset)
         fout.extend(f); aout.extend(a); foutx.extend(fx); aoutx.extend(ax)
         fout2.extend(f2); aout2.extend(a2); fout3.extend(f3); aout3.extend(a3)
@@ -290,13 +303,16 @@ def createplotdata(signal, Fs, config, norm=[0]):
     aout2 = [a - norm[0] for a in aout2]
     aout3 = [a - norm[0] for a in aout3]
     
+    filter_start = time.time()
     sos = iirfilter(3, 0.5, btype='lowpass', output='sos')
     aout = sosfiltfilt(sos, aout)
     aout2 = sosfiltfilt(sos, aout2)
     aout3 = sosfiltfilt(sos, aout3)
     if len(aoutx) > 0:
         aoutx = sosfiltfilt(sos, aoutx)
+    console.log(f"  filtering took: {time.time() - filter_start:.3f}s")
     
+    console.log(f"  createplotdata TOTAL: {time.time() - start_time:.2f}s")
     return fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3
 
 def riaaiir(sig, Fs, mode, inv):
@@ -319,41 +335,89 @@ def riaaiir(sig, Fs, mode, inv):
 
 def process_audio():
     try:
+        import time
+        start_time = time.time()
         console.log("Processing...")
         
-        # Get data from JavaScript
+        # Get data from JavaScript - optimize data conversion
         import js
-        file0_data = bytes(js.js_file0_data)
-        file1_data = bytes(js.js_file1_data) if js.js_file1_data else None
+        console.log("Converting file data...")
+        data_start = time.time()
+        
+        # More efficient data conversion with memory management
+        file0_array = js.js_file0_data.to_py()
+        file0_data = bytes(file0_array)
+        del file0_array  # Free memory immediately
+        
+        file1_data = None
+        if js.js_file1_data:
+            file1_array = js.js_file1_data.to_py()
+            file1_data = bytes(file1_array)
+            del file1_array  # Free memory immediately
+        
         config = js.js_config.to_py()
+        console.log(f"Data conversion took: {time.time() - data_start:.2f}s")
+        
+        wav_start = time.time()
+        console.log("Data conversion complete, reading WAV...")
         
         with io.BytesIO(file0_data) as wav_io:
             Fs, audio0 = wavfile.read(wav_io)
         
+        console.log(f"WAV reading took: {time.time() - wav_start:.2f}s")
+        console.log(f"Loaded audio: {Fs}Hz, {len(audio0)} samples")
+        
+        convert_start = time.time()
         if audio0.dtype == np.int16:
             audio0 = audio0.astype(np.float32) / 32768.0
         elif audio0.dtype == np.int32:
             audio0 = audio0.astype(np.float32) / 2147483648.0
         audio0 = audio0.T
+        console.log(f"Audio conversion took: {time.time() - convert_start:.2f}s")
         
         if config['riaa_mode'] != 0:
+            riaa_start = time.time()
+            console.log("Applying RIAA filter...")
             audio0 = riaaiir(audio0, Fs, config['riaa_mode'], config['riaa_inverse'])
+            console.log(f"RIAA filtering took: {time.time() - riaa_start:.2f}s")
         
+        plot_data_start = time.time()
+        console.log("Creating plot data...")
         fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(audio0, Fs, config)
+        console.log(f"Plot data creation took: {time.time() - plot_data_start:.2f}s")
+        
+        # Clear audio0 from memory if no longer needed
+        del audio0
         
         has_file1 = file1_data is not None
         if has_file1:
+            file1_start = time.time()
+            console.log("Processing second file...")
             with io.BytesIO(file1_data) as wav_io:
                 Fs1, audio1 = wavfile.read(wav_io)
+            console.log(f"Second WAV reading took: {time.time() - file1_start:.2f}s")
+            
+            convert1_start = time.time()
             if audio1.dtype == np.int16:
                 audio1 = audio1.astype(np.float32) / 32768.0
             elif audio1.dtype == np.int32:
                 audio1 = audio1.astype(np.float32) / 2147483648.0
             audio1 = audio1.T
+            console.log(f"Second audio conversion took: {time.time() - convert1_start:.2f}s")
+            
             if config['riaa_mode'] != 0:
+                riaa1_start = time.time()
                 audio1 = riaaiir(audio1, Fs1, config['riaa_mode'], config['riaa_inverse'])
+                console.log(f"Second RIAA filtering took: {time.time() - riaa1_start:.2f}s")
+            
             norm_val = [ao0[find_nearest(fo0, config['normalize'])]]
+            plot_data1_start = time.time()
             fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(audio1, Fs1, config, norm_val)
+            console.log(f"Second plot data creation took: {time.time() - plot_data1_start:.2f}s")
+            del audio1
+        
+        plot_start = time.time()
+        console.log("Generating plot...")
         
         plt.rcParams["xtick.minor.visible"] = True
         plt.rcParams["ytick.minor.visible"] = True
@@ -394,6 +458,7 @@ def process_audio():
             gs = GridSpec(2, 1, height_ratios=[1, 2])
             axs[0].set_position(gs[0].get_position(fig))
             axs[1].set_position(gs[1].get_position(fig))
+            
         else:
             fig, ax = plt.subplots(1, 1, figsize=(14, 6))
             ax.semilogx(fo0, ao0, color='#0000ff', linewidth=2)
@@ -410,13 +475,17 @@ def process_audio():
         plt.suptitle("SJPlot Online - Full Analysis", fontsize=16)
         plt.tight_layout()
         
+        console.log("Saving plot...")
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=192, bbox_inches='tight')
         buf.seek(0)
         img_data = base64.b64encode(buf.read()).decode()
         # Don't call plt.close() - it causes issues in PyScript
         plt.clf()  # Clear the current figure instead
+        console.log(f"Plot generation took: {time.time() - plot_start:.2f}s")
         
+        results_start = time.time()
+        console.log("Calculating results...")
         deltaadj = ao0[find_nearest(fo0, config['normalize'])]
         deltah0 = round(max(ao0 - deltaadj), 1)
         deltal0 = abs(round(min(ao0 - deltaadj), 1))
@@ -436,6 +505,8 @@ def process_audio():
         # Re-enable button by calling JS function
         from js import updateAnalyzeButtonState
         updateAnalyzeButtonState()
+        console.log(f"Results calculation took: {time.time() - results_start:.2f}s")
+        console.log(f"TOTAL PROCESSING TIME: {time.time() - start_time:.2f}s")
         console.log("Done!")
         
     except Exception as e:
