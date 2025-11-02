@@ -425,7 +425,9 @@ def process_audio():
         document.getElementById('status').textContent = '✅ Complete!'
         document.getElementById('status').className = 'success'
         document.getElementById('loading').classList.remove('active')
-        document.getElementById('analyzeBtn').disabled = False
+        # Re-enable button by calling JS function
+        from js import updateAnalyzeButtonState
+        updateAnalyzeButtonState()
         console.log("Done!")
         
     except Exception as e:
@@ -436,11 +438,45 @@ def process_audio():
         document.getElementById('status').textContent = f'❌ Error'
         document.getElementById('status').className = 'error'
         document.getElementById('loading').classList.remove('active')
-        document.getElementById('analyzeBtn').disabled = False
+        # Re-enable button by calling JS function
+        from js import updateAnalyzeButtonState
+        updateAnalyzeButtonState()
     </py-script>
 
     <script>
         let file0Data = null, file1Data = null;
+        let pyScriptReady = false;
+        
+        // Wait for PyScript to be ready
+        document.addEventListener('py:ready', function() {
+            pyScriptReady = true;
+            console.log('PyScript is ready!');
+            updateAnalyzeButtonState();
+        });
+        
+        // Also check for the newer event name
+        document.addEventListener('pyscript:ready', function() {
+            pyScriptReady = true;
+            console.log('PyScript is ready!');
+            updateAnalyzeButtonState();
+        });
+        
+        function updateAnalyzeButtonState() {
+            const btn = document.getElementById('analyzeBtn');
+            if (file0Data && pyScriptReady) {
+                btn.disabled = false;
+                btn.textContent = '🔬 Analyze Audio';
+            } else if (!pyScriptReady) {
+                btn.disabled = true;
+                btn.textContent = '⏳ Loading PyScript...';
+            } else {
+                btn.disabled = true;
+                btn.textContent = '🔬 Analyze Audio';
+            }
+        }
+        
+        // Make function globally available for Python to call
+        window.updateAnalyzeButtonState = updateAnalyzeButtonState;
         
         document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
         document.getElementById('fileInput1').addEventListener('change', e => handleFile(e.target.files[0], 1));
@@ -461,13 +497,19 @@ def process_audio():
                 if (file1Data) html += `📄 ${file1Data.name}`;
                 document.getElementById('fileInfo').innerHTML = html;
                 document.getElementById('fileInfo').style.display = 'block';
-                document.getElementById('analyzeBtn').disabled = false;
+                updateAnalyzeButtonState();
             };
             reader.readAsArrayBuffer(file);
         }
         
         function startAnalysis() {
             if (!file0Data) { alert('Upload a file first'); return; }
+            
+            // Check if PyScript is ready
+            if (!pyScriptReady || !window.pyscript || !window.pyscript.interpreter) {
+                alert('PyScript is still loading. Please wait a moment and try again.');
+                return;
+            }
             
             document.getElementById('status').textContent = 'Processing...';
             document.getElementById('status').className = 'info';
@@ -496,7 +538,7 @@ def process_audio():
                 document.getElementById('status').textContent = '❌ Error: ' + error.message;
                 document.getElementById('status').className = 'error';
                 document.getElementById('loading').classList.remove('active');
-                document.getElementById('analyzeBtn').disabled = false;
+                updateAnalyzeButtonState();
             }
         }
     </script>
