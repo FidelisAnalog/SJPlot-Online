@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SJPlot Online</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/pyscript.css" />
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/pyscript.js"></script>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.8.2/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.8.2/core.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -451,27 +451,27 @@ def process_audio():
         let file0Data = null, file1Data = null;
         let pyScriptReady = false;
         
-        // Wait for PyScript to be ready - try multiple event types and polling
-        let checkCount = 0;
-        const maxChecks = 60; // 60 seconds timeout
-        
         // Test network connectivity to PyScript CDN
         function testPyScriptCDN() {
-            fetch('https://pyscript.net/releases/2024.1.1/pyscript.js', { method: 'HEAD' })
+            fetch('https://pyscript.net/releases/2024.8.2/core.js', { method: 'HEAD' })
                 .then(response => {
                     if (response.ok) {
                         console.log('PyScript CDN is reachable');
-                        document.getElementById('pyscriptStatus').textContent = 'PyScript CDN reachable, initializing...';
+                        document.getElementById('pyscriptStatus').textContent = 'PyScript CDN reachable, waiting for initialization...';
                     } else {
                         console.error('PyScript CDN returned error:', response.status);
-                        document.getElementById('pyscriptStatus').textContent = `PyScript CDN error: ${response.status}`;
+                        document.getElementById('pyscriptStatus').innerHTML = `
+                            PyScript CDN error: ${response.status}<br>
+                            <a href="javascript:location.reload()">Try refreshing the page</a>
+                        `;
+                        document.getElementById('pyscriptStatus').style.color = 'red';
                     }
                 })
                 .catch(error => {
                     console.error('Cannot reach PyScript CDN:', error);
                     document.getElementById('pyscriptStatus').innerHTML = `
                         Cannot reach PyScript CDN. Check your internet connection.<br>
-                        Error: ${error.message}
+                        <a href="javascript:location.reload()">Try refreshing the page</a>
                     `;
                     document.getElementById('pyscriptStatus').style.color = 'red';
                 });
@@ -480,64 +480,33 @@ def process_audio():
         // Test CDN connectivity first
         testPyScriptCDN();
         
-        // Check if PyScript script loaded successfully
-        function checkScriptLoaded() {
-            const scripts = document.querySelectorAll('script[src*="pyscript"]');
-            console.log('PyScript script tags found:', scripts.length);
-            
-            // Check if the script loaded without errors
-            for (let script of scripts) {
-                script.onerror = function() {
-                    console.error('Failed to load PyScript from CDN');
-                    document.getElementById('pyscriptStatus').textContent = 'Failed to load PyScript from CDN. Check internet connection.';
-                    document.getElementById('pyscriptStatus').style.color = 'red';
-                };
-                
-                script.onload = function() {
-                    console.log('PyScript script loaded successfully');
-                    document.getElementById('pyscriptStatus').textContent = 'PyScript script loaded, initializing interpreter...';
-                };
-            }
-        }
-        
+        // Simple check for PyScript readiness - no wasteful timer
         function checkPyScriptReady() {
-            checkCount++;
-            console.log(`Checking PyScript readiness... attempt ${checkCount}`);
-            console.log('window.pyscript:', window.pyscript);
-            updateAnalyzeButtonState(); // Update UI each check
-            
-            // Check if PyScript object exists and has interpreter
-            if (window.pyscript) {
-                console.log('PyScript object found:', Object.keys(window.pyscript));
-                if (window.pyscript.interpreter) {
-                    pyScriptReady = true;
-                    console.log('PyScript interpreter is ready!');
-                    updateAnalyzeButtonState();
-                    return;
-                }
+            if (window.pyscript && window.pyscript.interpreter) {
+                pyScriptReady = true;
+                console.log('PyScript interpreter is ready!');
+                updateAnalyzeButtonState();
+                return true;
             }
-            
-            if (checkCount < maxChecks) {
-                setTimeout(checkPyScriptReady, 1000); // Check every second
-            } else {
-                console.error('PyScript failed to load after 60 seconds');
-                document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed to Load';
-                document.getElementById('pyscriptStatus').innerHTML = `
-                    PyScript failed to load. Possible solutions:<br>
-                    • Check internet connection<br>
-                    • Disable ad blockers<br>
-                    • Try a different browser<br>
-                    • <a href="javascript:location.reload()">Refresh the page</a>
-                `;
-                document.getElementById('pyscriptStatus').style.color = 'red';
-            }
+            return false;
         }
         
-        // Check script loading first
-        checkScriptLoaded();
-        
-        // Start checking immediately
-        setTimeout(checkPyScriptReady, 2000); // Wait 2 seconds before first check
+        // Quick initial check
+        setTimeout(() => {
+            if (!checkPyScriptReady()) {
+                // If not ready after 5 seconds, something is wrong
+                setTimeout(() => {
+                    if (!checkPyScriptReady()) {
+                        document.getElementById('pyscriptStatus').innerHTML = `
+                            PyScript failed to initialize.<br>
+                            <a href="javascript:location.reload()">Refresh the page</a> to try again.
+                        `;
+                        document.getElementById('pyscriptStatus').style.color = 'red';
+                        document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed';
+                    }
+                }, 5000);
+            }
+        }, 1000);
         
         // Also listen for various PyScript events
         document.addEventListener('py:ready', function() {
@@ -577,7 +546,6 @@ def process_audio():
             } else if (!pyScriptReady) {
                 btn.disabled = true;
                 btn.textContent = '⏳ Loading PyScript...';
-                statusDiv.textContent = `Initializing Python environment... (${checkCount}/${maxChecks})`;
                 statusDiv.style.display = 'block';
                 statusDiv.style.color = '#666';
             } else {
