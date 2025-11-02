@@ -457,7 +457,7 @@ def process_audio():
                 .then(response => {
                     if (response.ok) {
                         console.log('PyScript CDN is reachable');
-                        document.getElementById('pyscriptStatus').textContent = 'PyScript CDN reachable, waiting for initialization...';
+                        document.getElementById('pyscriptStatus').textContent = 'PyScript loading, please wait...';
                     } else {
                         console.error('PyScript CDN returned error:', response.status);
                         document.getElementById('pyscriptStatus').innerHTML = `
@@ -480,52 +480,47 @@ def process_audio():
         // Test CDN connectivity first
         testPyScriptCDN();
         
-        // Simple check for PyScript readiness - no wasteful timer
-        function checkPyScriptReady() {
-            if (window.pyscript && window.pyscript.interpreter) {
-                pyScriptReady = true;
-                console.log('PyScript interpreter is ready!');
-                updateAnalyzeButtonState();
-                return true;
-            }
-            return false;
-        }
-        
-        // Quick initial check
-        setTimeout(() => {
-            if (!checkPyScriptReady()) {
-                // If not ready after 5 seconds, something is wrong
-                setTimeout(() => {
-                    if (!checkPyScriptReady()) {
-                        document.getElementById('pyscriptStatus').innerHTML = `
-                            PyScript failed to initialize.<br>
-                            <a href="javascript:location.reload()">Refresh the page</a> to try again.
-                        `;
-                        document.getElementById('pyscriptStatus').style.color = 'red';
-                        document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed';
-                    }
-                }, 5000);
-            }
-        }, 1000);
-        
-        // Also listen for various PyScript events
+        // Listen for PyScript events properly
         document.addEventListener('py:ready', function() {
             console.log('py:ready event fired');
             pyScriptReady = true;
             updateAnalyzeButtonState();
         });
         
-        document.addEventListener('pyscript:ready', function() {
-            console.log('pyscript:ready event fired');
-            pyScriptReady = true;
-            updateAnalyzeButtonState();
-        });
-        
-        // Listen for when PyScript starts loading
         document.addEventListener('py:all-done', function() {
             console.log('py:all-done event fired');
             pyScriptReady = true;
             updateAnalyzeButtonState();
+        });
+        
+        // Also try the window load event as a fallback
+        window.addEventListener('load', function() {
+            console.log('Window loaded, checking PyScript...');
+            setTimeout(() => {
+                if (window.pyscript && window.pyscript.interpreter) {
+                    console.log('PyScript found after window load');
+                    pyScriptReady = true;
+                    updateAnalyzeButtonState();
+                } else {
+                    console.log('PyScript still not ready after window load, will keep waiting...');
+                    // Set a longer timeout as fallback
+                    setTimeout(() => {
+                        if (window.pyscript && window.pyscript.interpreter) {
+                            console.log('PyScript found after extended wait');
+                            pyScriptReady = true;
+                            updateAnalyzeButtonState();
+                        } else {
+                            console.error('PyScript failed to initialize');
+                            document.getElementById('pyscriptStatus').innerHTML = `
+                                PyScript failed to initialize.<br>
+                                <a href="javascript:location.reload()">Refresh the page</a> to try again.
+                            `;
+                            document.getElementById('pyscriptStatus').style.color = 'red';
+                            document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed';
+                        }
+                    }, 10000); // 10 second fallback
+                }
+            }, 2000); // 2 second initial delay
         });
         
         // Add a manual override for testing
