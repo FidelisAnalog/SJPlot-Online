@@ -493,41 +493,87 @@ def process_audio():
             updateAnalyzeButtonState();
         });
         
-        // Also try the window load event as a fallback
-        window.addEventListener('load', function() {
-            console.log('Window loaded, checking PyScript...');
-            setTimeout(() => {
-                if (window.pyscript && window.pyscript.interpreter) {
-                    console.log('PyScript found after window load');
+        // Also listen for other possible events
+        document.addEventListener('pyscript:ready', function() {
+            console.log('pyscript:ready event fired');
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, starting PyScript checks...');
+        });
+        
+        // More aggressive polling approach with detailed logging
+        let pollCount = 0;
+        function pollForPyScript() {
+            pollCount++;
+            console.log(`Poll ${pollCount}: Checking PyScript status...`);
+            console.log('window.pyscript exists:', !!window.pyscript);
+            
+            if (window.pyscript) {
+                console.log('window.pyscript keys:', Object.keys(window.pyscript));
+                console.log('window.pyscript.interpreter exists:', !!window.pyscript.interpreter);
+                
+                if (window.pyscript.interpreter) {
+                    console.log('PyScript interpreter found!');
                     pyScriptReady = true;
                     updateAnalyzeButtonState();
-                } else {
-                    console.log('PyScript still not ready after window load, will keep waiting...');
-                    // Set a longer timeout as fallback
-                    setTimeout(() => {
-                        if (window.pyscript && window.pyscript.interpreter) {
-                            console.log('PyScript found after extended wait');
-                            pyScriptReady = true;
-                            updateAnalyzeButtonState();
-                        } else {
-                            console.error('PyScript failed to initialize');
-                            document.getElementById('pyscriptStatus').innerHTML = `
-                                PyScript failed to initialize.<br>
-                                <a href="javascript:location.reload()">Refresh the page</a> to try again.
-                            `;
-                            document.getElementById('pyscriptStatus').style.color = 'red';
-                            document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed';
-                        }
-                    }, 10000); // 10 second fallback
+                    return;
                 }
-            }, 2000); // 2 second initial delay
+            }
+            
+            // Check for other PyScript indicators
+            if (window.pyodide) {
+                console.log('Pyodide found, checking if ready...');
+                if (window.pyodide.runPython) {
+                    console.log('Pyodide runPython available');
+                    pyScriptReady = true;
+                    updateAnalyzeButtonState();
+                    return;
+                }
+            }
+            
+            if (pollCount < 30) { // 30 second timeout
+                setTimeout(pollForPyScript, 1000);
+            } else {
+                console.error('PyScript polling timed out after 30 seconds');
+                document.getElementById('pyscriptStatus').innerHTML = `
+                    PyScript failed to initialize after 30 seconds.<br>
+                    Debug info: window.pyscript = ${!!window.pyscript}, window.pyodide = ${!!window.pyodide}<br>
+                    <a href="javascript:location.reload()">Refresh page</a> or 
+                    <a href="javascript:forcePyScriptReady()">Force Ready (for testing)</a>
+                `;
+                document.getElementById('pyscriptStatus').style.color = 'red';
+                document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed';
+            }
+        }
+        
+        // Also try the window load event as a fallback
+        window.addEventListener('load', function() {
+            console.log('Window loaded, starting PyScript polling in 3 seconds...');
+            setTimeout(pollForPyScript, 3000); // Start polling after 3 seconds
         });
         
         // Add a manual override for testing
         window.forcePyScriptReady = function() {
+            console.log('Forcing PyScript ready state...');
             pyScriptReady = true;
             updateAnalyzeButtonState();
+            document.getElementById('pyscriptStatus').style.display = 'none';
             console.log('PyScript manually marked as ready');
+        };
+        
+        // Also add a debug function
+        window.debugPyScript = function() {
+            console.log('=== PyScript Debug Info ===');
+            console.log('pyScriptReady:', pyScriptReady);
+            console.log('window.pyscript:', window.pyscript);
+            console.log('window.pyodide:', window.pyodide);
+            if (window.pyscript) {
+                console.log('pyscript keys:', Object.keys(window.pyscript));
+            }
+            console.log('========================');
         };
         
         function updateAnalyzeButtonState() {
