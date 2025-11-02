@@ -652,24 +652,67 @@ def process_audio():
             };
             
             try {
-                // For newer PyScript API, access globals differently
+                console.log('=== Debugging PyScript API ===');
+                console.log('window.pyscript:', window.pyscript);
+                console.log('window.pyodide:', window.pyodide);
+                
+                if (window.pyscript) {
+                    console.log('pyscript keys:', Object.keys(window.pyscript));
+                }
+                if (window.pyodide) {
+                    console.log('pyodide keys:', Object.keys(window.pyodide));
+                }
+                
+                // Try multiple PyScript API approaches
+                let success = false;
+                
+                // Method 1: New PyScript API
                 if (window.pyscript && window.pyscript.globals) {
-                    // New API
+                    console.log('Trying new PyScript API...');
                     const pyFileData = window.pyscript.globals.get('file_data');
                     pyFileData.set('file0', file0Data.bytes);
                     pyFileData.set('file1', file1Data ? file1Data.bytes : null);
                     pyFileData.set('config', config);
                     window.pyscript.globals.get('process_audio')();
-                } else if (window.pyodide) {
-                    // Direct Pyodide access
-                    window.pyodide.globals.set('file_data', {
-                        file0: file0Data.bytes,
-                        file1: file1Data ? file1Data.bytes : null,
-                        config: config
-                    });
-                    window.pyodide.runPython('process_audio()');
-                } else {
-                    throw new Error('PyScript API not found');
+                    success = true;
+                }
+                // Method 2: Direct Pyodide access
+                else if (window.pyodide && window.pyodide.globals) {
+                    console.log('Trying Pyodide globals API...');
+                    window.pyodide.globals.set('js_file0_data', file0Data.bytes);
+                    window.pyodide.globals.set('js_file1_data', file1Data ? file1Data.bytes : null);
+                    window.pyodide.globals.set('js_config', config);
+                    
+                    // Update the Python variables
+                    window.pyodide.runPython(`
+file_data['file0'] = js_file0_data
+file_data['file1'] = js_file1_data  
+file_data['config'] = js_config
+process_audio()
+                    `);
+                    success = true;
+                }
+                // Method 3: Try accessing Python namespace directly
+                else if (window.pyodide && window.pyodide.runPython) {
+                    console.log('Trying direct pyodide.runPython...');
+                    
+                    // Convert JS data to Python-accessible format
+                    window.pyodide.globals.set('temp_file0', Array.from(file0Data.bytes));
+                    window.pyodide.globals.set('temp_file1', file1Data ? Array.from(file1Data.bytes) : null);
+                    window.pyodide.globals.set('temp_config', config);
+                    
+                    window.pyodide.runPython(`
+import js
+file_data['file0'] = bytes(temp_file0) if temp_file0 else None
+file_data['file1'] = bytes(temp_file1) if temp_file1 else None
+file_data['config'] = temp_config
+process_audio()
+                    `);
+                    success = true;
+                }
+                
+                if (!success) {
+                    throw new Error('Could not find working PyScript API method');
                 }
                 
             } catch (error) {
