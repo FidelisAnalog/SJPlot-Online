@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SJPlot Online</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script type="module" src="https://pyscript.net/latest/pyscript.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -173,8 +173,12 @@
         </div>
         
         <button class="analyze-btn" id="analyzeBtn" onclick="startAnalysis()" disabled>
-            🔬 Analyze Audio
+            ⏳ Loading PyScript...
         </button>
+        
+        <div id="pyscriptStatus" style="text-align: center; margin-top: 10px; color: #666; font-size: 0.9em;">
+            Initializing Python environment...
+        </div>
         
         <div id="status"></div>
         <div class="loading" id="loading">
@@ -447,31 +451,80 @@ def process_audio():
         let file0Data = null, file1Data = null;
         let pyScriptReady = false;
         
-        // Wait for PyScript to be ready
+        // Wait for PyScript to be ready - try multiple event types and polling
+        let checkCount = 0;
+        const maxChecks = 30; // 30 seconds timeout
+        
+        function checkPyScriptReady() {
+            checkCount++;
+            console.log(`Checking PyScript readiness... attempt ${checkCount}`);
+            updateAnalyzeButtonState(); // Update UI each check
+            
+            if (window.pyscript && window.pyscript.interpreter) {
+                pyScriptReady = true;
+                console.log('PyScript is ready!');
+                updateAnalyzeButtonState();
+                return;
+            }
+            
+            if (checkCount < maxChecks) {
+                setTimeout(checkPyScriptReady, 1000); // Check every second
+            } else {
+                console.error('PyScript failed to load after 30 seconds');
+                document.getElementById('analyzeBtn').textContent = '❌ PyScript Failed to Load';
+                document.getElementById('pyscriptStatus').textContent = 'PyScript failed to load. Try refreshing the page.';
+                document.getElementById('pyscriptStatus').style.color = 'red';
+            }
+        }
+        
+        // Start checking immediately
+        checkPyScriptReady();
+        
+        // Also listen for various PyScript events
         document.addEventListener('py:ready', function() {
+            console.log('py:ready event fired');
             pyScriptReady = true;
-            console.log('PyScript is ready!');
             updateAnalyzeButtonState();
         });
         
-        // Also check for the newer event name
         document.addEventListener('pyscript:ready', function() {
+            console.log('pyscript:ready event fired');
             pyScriptReady = true;
-            console.log('PyScript is ready!');
             updateAnalyzeButtonState();
         });
+        
+        // Listen for when PyScript starts loading
+        document.addEventListener('py:all-done', function() {
+            console.log('py:all-done event fired');
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+        });
+        
+        // Add a manual override for testing
+        window.forcePyScriptReady = function() {
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+            console.log('PyScript manually marked as ready');
+        };
         
         function updateAnalyzeButtonState() {
             const btn = document.getElementById('analyzeBtn');
+            const statusDiv = document.getElementById('pyscriptStatus');
+            
             if (file0Data && pyScriptReady) {
                 btn.disabled = false;
                 btn.textContent = '🔬 Analyze Audio';
+                statusDiv.style.display = 'none';
             } else if (!pyScriptReady) {
                 btn.disabled = true;
                 btn.textContent = '⏳ Loading PyScript...';
+                statusDiv.textContent = `Initializing Python environment... (${checkCount}/${maxChecks})`;
+                statusDiv.style.display = 'block';
             } else {
                 btn.disabled = true;
                 btn.textContent = '🔬 Analyze Audio';
+                statusDiv.textContent = 'Upload a WAV file to begin';
+                statusDiv.style.display = 'block';
             }
         }
         
