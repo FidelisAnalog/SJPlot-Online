@@ -1099,6 +1099,11 @@ def process_audio_web():
         else:
             audio1 = None  # Handle the absence of the second file
 
+        # Debugging: Log the audio data shapes
+        console.log("Audio0 shape:", audio0.shape)
+        if audio1 is not None:
+            console.log("Audio1 shape:", audio1.shape)
+
         # Process audio and generate plots
         # ...existing processing logic...
 
