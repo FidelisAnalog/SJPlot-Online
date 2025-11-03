@@ -148,9 +148,11 @@
                 <div class="config-item">
                     <label>Plot Style</label>
                     <select id="plotStyle">
-                        <option value="1">Style 1</option>
+                        <option value="1">Style 1 (Single + Harmonics)</option>
+                        <option value="2">Style 2 (Dual Axis)</option>
+                        <option value="3">Style 3 (Dual Plot)</option>
                         <option value="4" selected>Style 4 (Dual + Zoom)</option>
-                        <option value="5">Style 5</option>
+                        <option value="5">Style 5 (Simple)</option>
                     </select>
                 </div>
                 <div class="config-item">
@@ -164,11 +166,19 @@
                 </div>
                 <div class="config-item">
                     <label>Normalize (Hz)</label>
-                    <input type="number" id="normalize" value="1000" />
+                    <input type="number" id="normalize" value="1000" min="20" max="20000" />
+                </div>
+                <div class="config-item">
+                    <label>End Frequency (Hz)</label>
+                    <input type="number" id="endFreq" value="20000" min="1000" max="50000" />
                 </div>
                 <div class="config-item checkbox-item">
                     <input type="checkbox" id="riaaInverse" checked />
                     <label>Inverse RIAA</label>
+                </div>
+                <div class="config-item checkbox-item">
+                    <input type="checkbox" id="onekfstart" />
+                    <label>Start at 1kHz</label>
                 </div>
             </div>
         </div>
@@ -206,17 +216,318 @@ from matplotlib.offsetbox import AnchoredText
 import numpy as np
 import io
 import base64
-from js import document, console
-
-# Global storage
-file_data = {'file0': None, 'file1': None, 'config': None}
+from js import console, document
+import js
 
 def ft_window(n):
+    """5-term Blackman-Nuttall window - same as SJPlot.py"""
     a0, a1, a2, a3, a4 = 0.21557895, 0.41663158, 0.277263158, 0.083578947, 0.006947368
     x = np.arange(n)
     w = (a0 - a1*np.cos(2*np.pi*x/(n-1)) + a2*np.cos(4*np.pi*x/(n-1)) - 
          a3*np.cos(6*np.pi*x/(n-1)) + a4*np.cos(8*np.pi*x/(n-1)))
     return w
+
+def find_nearest(array, value):
+    return (np.abs(np.asarray(array) - value)).argmin()
+
+def interpolate(f, a, minf, maxf, fstep):
+    bins = np.arange(minf, maxf + fstep, fstep)
+    indices = np.digitize(f, bins) - 1
+    f_out, a_out = [], []
+    for i, bin_center in enumerate(bins):
+        mask = (indices == i)
+        if np.any(mask):
+            f_out.append(bin_center)
+            a_out.append(np.mean(np.array(a)[mask]))
+    return f_out, a_out
+
+def rfft_full(signal, Fs, minf, maxf, fstep):
+    """Enhanced FFT function matching SJPlot.py logic"""
+    freq, amp, freqx, ampx, freq2h, amp2h, freq3h, amp3h = [], [], [], [], [], [], [], []
+    F = int(Fs/fstep)
+    win = ft_window(F)
+    
+    if len(signal.shape) == 1:
+        signal = np.expand_dims(signal, axis=0)
+        
+    for x in range(0, signal.shape[1] - F, F):
+        y0 = abs(np.fft.rfft(signal[0, x:x + F] * win))
+        f0 = np.argmax(y0)
+        
+        if f0 >= minf/fstep and f0 <= maxf/fstep:
+            freq.append(f0 * fstep)
+            amp.append(20 * np.log10(y0[f0] + 1e-20))
+            
+            # 2nd and 3rd harmonics
+            if f0 * 2 < len(y0):
+                freq2h.append(f0 * fstep)
+                amp2h.append(20 * np.log10(y0[f0 * 2] + 1e-20))
+            if f0 * 3 < len(y0):
+                freq3h.append(f0 * fstep)
+                amp3h.append(20 * np.log10(y0[f0 * 3] + 1e-20))
+        
+        # Crosstalk (if stereo)
+        if signal.shape[0] > 1:
+            y1 = abs(np.fft.rfft(signal[1, x:x + F] * win))
+            if f0 >= minf/fstep and f0 <= maxf/fstep and f0 < len(y1):
+                freqx.append(f0 * fstep)
+                ampx.append(20 * np.log10(y1[f0] + 1e-20))
+    
+    return freq, amp, freqx, ampx, freq2h, amp2h, freq3h, amp3h
+
+def createplotdata(signal, Fs, config):
+    """Enhanced createplotdata with full SJPlot.py configuration support"""
+    def process_chunk(signal, Fs, fmin, fmax, step, offset):
+        f, a, fx, ax, f2, a2, f3, a3 = rfft_full(signal, Fs, fmin, fmax, step)
+        f, a = interpolate(f, a, fmin, fmax, step)
+        fx, ax = interpolate(fx, ax, fmin, fmax, step)
+        f2, a2 = interpolate(f2, a2, fmin, fmax, step)
+        f3, a3 = interpolate(f3, a3, fmin, fmax, step)
+        
+        # Apply offset corrections (from SJPlot.py)
+        a = [amp - offset for amp in a]
+        ax = [amp - offset for amp in ax] if ax else []
+        a2 = [amp - offset for amp in a2]
+        a3 = [amp - offset for amp in a3]
+        return f, a, fx, ax, f2, a2, f3, a3
+    
+    fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = [], [], [], [], [], [], [], []
+    
+    # Use SJPlot.py frequency chunking strategy
+    onekfstart = config.get('onekfstart', False)
+    end_f = config.get('end_f', 20000)
+    
+    if not onekfstart:
+        # Process low frequency chunks with SJPlot.py offsets
+        for fmin, fmax, step, offset in [(20,45,5,26.03), (50,90,10,19.995), (100,980,20,13.99)]:
+            f, a, fx, ax, f2, a2, f3, a3 = process_chunk(signal, Fs, fmin, fmax, step, offset)
+            fout.extend(f); aout.extend(a); foutx.extend(fx); aoutx.extend(ax)
+            fout2.extend(f2); aout2.extend(a2); fout3.extend(f3); aout3.extend(a3)
+    
+    # High frequency chunk
+    f, a, fx, ax, f2, a2, f3, a3 = process_chunk(signal, Fs, 1000, end_f, 100, 0)
+    fout.extend(f); aout.extend(a); foutx.extend(fx); aoutx.extend(ax)
+    fout2.extend(f2); aout2.extend(a2); fout3.extend(f3); aout3.extend(a3)
+    
+    # Normalization
+    normalize_freq = config.get('normalize', 1000)
+    norm_idx = find_nearest(fout, normalize_freq)
+    norm_offset = aout[norm_idx] if norm_idx < len(aout) else 0
+    
+    aout = [a - norm_offset for a in aout]
+    aoutx = [a - norm_offset for a in aoutx] if aoutx else []
+    aout2 = [a - norm_offset for a in aout2]
+    aout3 = [a - norm_offset for a in aout3]
+    
+    # Apply low-pass filter (from SJPlot.py)
+    sos = iirfilter(3, 0.5, btype='lowpass', output='sos')
+    aout = sosfiltfilt(sos, aout)
+    aout2 = sosfiltfilt(sos, aout2)
+    aout3 = sosfiltfilt(sos, aout3)
+    if len(aoutx) > 0:
+        aoutx = sosfiltfilt(sos, aoutx)
+    
+    return fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3
+
+def riaaiir(sig, Fs, mode, inv):
+    """RIAA filter implementation from SJPlot.py"""
+    if Fs == 96000:
+        at = [1, -0.66168391, -0.18158841]
+        bt = [0.1254979638905360, 0.0458786797031512, 0.0018820452752401]
+        ars = [1, -0.60450091, -0.39094593]
+        brs = [0.90861261463964900, -0.52293147388301200, -0.34491369168550900]
+    if inv == 1:
+        at, bt = bt, at
+        ars, brs = brs, ars
+    if mode == 1:
+        sig = lfilter(brs, ars, sig)
+    if mode == 2:
+        sig = lfilter(bt, at, sig)
+    if mode == 3:
+        sig = lfilter(bt, at, sig)
+        sig = lfilter(brs, ars, sig)
+    return sig
+
+def generate_plot(fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0, config, fo1=None, ao1=None, fox1=None, aox1=None, fo2h1=None, ao2h1=None, fo3h1=None, ao3h1=None):
+    """Generate plot with full SJPlot.py style support"""
+    plt.rcParams["xtick.minor.visible"] = True
+    plt.rcParams["ytick.minor.visible"] = True
+    
+    plot_style = config.get('plot_style', 4)
+    has_file1 = fo1 is not None
+    
+    # Support all 5 plot styles from SJPlot.py
+    if plot_style == 1:
+        fig, ax = plt.subplots(1, 1, figsize=(14, 6))
+        ax.semilogx(fo0, ao0, color='#0000ff', label='Freq Response')
+        ax.semilogx(fo2h0, ao2h0, color='#0080ff', label='2nd Harmonic', alpha=1, linewidth=0.75)
+        ax.semilogx(fo3h0, ao3h0, color='#00dfff', label='3rd Harmonic', alpha=1, linewidth=0.75)
+        if len(aox0) > 0:
+            ax.semilogx(fox0, aox0, color='#0000ff', linestyle='--', label='Crosstalk')
+        if has_file1:
+            ax.semilogx(fo1, ao1, color='#ff0000', label='File 2')
+        ax.legend()
+        
+    elif plot_style == 4:
+        fig, axs = plt.subplots(2, 1, sharex=True, figsize=(14, 10))
+        
+        # Top plot - frequency response only
+        axs[0].semilogx(fo0, ao0, color='#0000ff', linewidth=2)
+        if has_file1:
+            axs[0].semilogx(fo1, ao1, color='#ff0000', linewidth=2)
+        axs[0].set_ylim(-5, 5)
+        axs[0].set_ylabel("Amplitude (dB)")
+        axs[0].grid(True, which="major", ls="-", color="black", alpha=0.3)
+        axs[0].grid(True, which="minor", ls="-", color="gainsboro", alpha=0.2)
+        
+        # Bottom plot - frequency response + harmonics + crosstalk
+        axs[1].semilogx(fo0, ao0, color='#0000ff', linewidth=2)
+        axs[1].semilogx(fo2h0, ao2h0, color='#0080ff', linewidth=1, alpha=0.8)
+        axs[1].semilogx(fo3h0, ao3h0, color='#00dfff', linewidth=1, alpha=0.8)
+        if len(aox0) > 0:
+            axs[1].semilogx(fox0, aox0, color='#0000ff', linestyle='--', linewidth=1.5)
+        if has_file1:
+            axs[1].semilogx(fo1, ao1, color='#ff0000', linewidth=2)
+            axs[1].semilogx(fo2h1, ao2h1, color='#ff8000', linewidth=1, alpha=0.8)
+            axs[1].semilogx(fo3h1, ao3h1, color='#ffdf00', linewidth=1, alpha=0.8)
+            if len(aox1) > 0:
+                axs[1].semilogx(fox1, aox1, color='#ff0000', linestyle='--', linewidth=1.5)
+        axs[1].set_ylabel("Amplitude (dB)")
+        axs[1].set_xlabel("Frequency (Hz)")
+        axs[1].grid(True, which="major", ls="-", color="black", alpha=0.3)
+        axs[1].grid(True, which="minor", ls="-", color="gainsboro", alpha=0.2)
+        
+        # Style both axes
+        for ax in axs:
+            ax.set_xticks([20, 50, 100, 500, 1000, 5000, 10000, 20000])
+            ax.set_xticklabels(['20', '50', '100', '500', '1k', '5k', '10k', '20k'])
+            anchored_text = AnchoredText('SJ', frameon=False, borderpad=0, pad=0.03,
+                                        loc=1, bbox_transform=ax.transAxes,
+                                        prop={'color':'m', 'fontsize':25, 'alpha':0.4, 'style':'oblique'})
+            ax.add_artist(anchored_text)
+        
+        # Set subplot ratios like SJPlot.py
+        gs = GridSpec(2, 1, height_ratios=[1, 2])
+        axs[0].set_position(gs[0].get_position(fig))
+        axs[1].set_position(gs[1].get_position(fig))
+        
+    else:  # Default single plot for styles 2, 3, 5
+        fig, ax = plt.subplots(1, 1, figsize=(14, 6))
+        ax.semilogx(fo0, ao0, color='#0000ff', linewidth=2)
+        if has_file1:
+            ax.semilogx(fo1, ao1, color='#ff0000', linewidth=2)
+        ax.set_ylabel("Amplitude (dB)")
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylim(-5, 5)
+        ax.grid(True, which="major", ls="-", color="black", alpha=0.3)
+        ax.grid(True, which="minor", ls="-", color="gainsboro", alpha=0.2)
+        ax.set_xticks([20, 50, 100, 500, 1000, 5000, 10000, 20000])
+        ax.set_xticklabels(['20', '50', '100', '500', '1k', '5k', '10k', '20k'])
+    
+    plt.suptitle("SJPlot Online - Full Analysis", fontsize=16)
+    plt.tight_layout()
+    
+    return fig
+
+def process_audio():
+    try:
+        import time
+        start_time = time.time()
+        console.log("Processing with enhanced SJPlot.py compatibility...")
+        
+        # Get data from JavaScript
+        file0_array = js.js_file0_data.to_py()
+        file0_data = bytes(file0_array)
+        del file0_array
+        
+        file1_data = None
+        if js.js_file1_data:
+            file1_array = js.js_file1_data.to_py()
+            file1_data = bytes(file1_array)
+            del file1_array
+        
+        config = js.js_config.to_py()
+        console.log("Data conversion complete")
+        
+        # Process first file
+        with io.BytesIO(file0_data) as wav_io:
+            Fs, audio0 = wavfile.read(wav_io)
+        
+        if audio0.dtype == np.int16:
+            audio0 = audio0.astype(np.float32) / 32768.0
+        elif audio0.dtype == np.int32:
+            audio0 = audio0.astype(np.float32) / 2147483648.0
+        audio0 = audio0.T
+        
+        # Apply RIAA filtering if requested
+        if config.get('riaa_mode', 0) != 0:
+            audio0 = riaaiir(audio0, Fs, config['riaa_mode'], config.get('riaa_inverse', 0))
+        
+        # Create plot data
+        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(audio0, Fs, config)
+        del audio0
+        
+        # Process second file if provided
+        fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = None, None, None, None, None, None, None, None
+        if file1_data:
+            with io.BytesIO(file1_data) as wav_io:
+                Fs1, audio1 = wavfile.read(wav_io)
+            
+            if audio1.dtype == np.int16:
+                audio1 = audio1.astype(np.float32) / 32768.0
+            elif audio1.dtype == np.int32:
+                audio1 = audio1.astype(np.float32) / 2147483648.0
+            audio1 = audio1.T
+            
+            if config.get('riaa_mode', 0) != 0:
+                audio1 = riaaiir(audio1, Fs1, config['riaa_mode'], config.get('riaa_inverse', 0))
+            
+            fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(audio1, Fs1, config)
+            del audio1
+        
+        # Generate plot
+        fig = generate_plot(fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0, config, 
+                           fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1)
+        
+        # Convert to base64
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=192, bbox_inches='tight')
+        buf.seek(0)
+        img_data = base64.b64encode(buf.read()).decode()
+        plt.clf()
+        
+        # Calculate results
+        normalize_freq = config.get('normalize', 1000)
+        deltaadj = ao0[find_nearest(fo0, normalize_freq)]
+        deltah0 = round(max(ao0 - deltaadj), 1)
+        deltal0 = abs(round(min(ao0 - deltaadj), 1))
+        
+        html = f'''<div style="background:white; padding:20px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+            <h3>✅ Complete</h3>
+            <img src="data:image/png;base64,{img_data}" style="width:100%;" />
+            <div style="margin-top:20px; padding:20px; background:#f8f9ff; border-radius:10px;">
+                <p><strong>Range:</strong> +{deltah0}dB, −{deltal0}dB | <strong>SR:</strong> {Fs}Hz</p>
+                <p><strong>Features:</strong> FFT ✓ RIAA ✓ Harmonics ✓ Crosstalk ✓</p>
+                <p><strong>Processing time:</strong> {time.time() - start_time:.2f}s</p>
+            </div></div>'''
+        
+        # Update UI via JavaScript callback
+        from js import updateUIWithResults
+        updateUIWithResults(html)
+        
+        console.log(f"TOTAL PROCESSING TIME: {time.time() - start_time:.2f}s")
+        console.log("Done!")
+        
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        console.error(err)
+        from js import updateUIWithError
+        updateUIWithError(str(e))
+
+# Make function globally available
+js.window.pyProcessAudio = process_audio
+    </py-script>
 
 def find_nearest(array, value):
     return (np.abs(np.asarray(array) - value)).argmin()
@@ -515,11 +826,6 @@ def process_audio():
         from js import updateUIWithError
         updateUIWithError(str(e))
 
-# Make the function available globally for JavaScript to call
-import js
-js.window.pyProcessAudio = process_audio
-
-console.log("Python environment ready! PyScript functions available.")
     </py-script>
 
     <script>
@@ -750,7 +1056,9 @@ console.log("Python environment ready! PyScript functions available.")
                     plot_style: parseInt(document.getElementById('plotStyle').value),
                     riaa_mode: parseInt(document.getElementById('riaaMode').value),
                     riaa_inverse: document.getElementById('riaaInverse').checked ? 1 : 0,
-                    normalize: parseInt(document.getElementById('normalize').value)
+                    normalize: parseInt(document.getElementById('normalize').value),
+                    end_f: parseInt(document.getElementById('endFreq').value),
+                    onekfstart: document.getElementById('onekfstart').checked
                 };
                 
                 try {

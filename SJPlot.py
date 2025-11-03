@@ -613,9 +613,6 @@ def slice_audio(signal, Fs, test_record):
     return left_slice, right_slice
 
 
-
-
-
 if __name__ == "__main__":
 
 
