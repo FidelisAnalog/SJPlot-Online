@@ -1081,12 +1081,14 @@ def process_audio_web():
         from scipy.io.wavfile import read
         import matplotlib.pyplot as plt
 
-        file0_bytes = window.js_file0_data
-        file1_bytes = window.js_file1_data  # May be None
+        # Convert JsProxy to bytes
+        file0_bytes = bytes(window.js_file0_data.to_py())
+        file1_bytes = bytes(window.js_file1_data.to_py()) if window.js_file1_data is not None else None
 
         # Debugging: Log the received data
-        console.log("Processing file0_bytes:", file0_bytes)
-        console.log("Processing file1_bytes:", file1_bytes)
+        console.log("Processing file0_bytes:", len(file0_bytes))
+        if file1_bytes is not None:
+            console.log("Processing file1_bytes:", len(file1_bytes))
 
         # Convert file0_bytes to audio data
         with io.BytesIO(file0_bytes) as wav_io:
