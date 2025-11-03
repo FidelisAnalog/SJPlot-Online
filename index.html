@@ -196,6 +196,7 @@
     <py-config>
         packages = ["numpy", "scipy", "matplotlib"]
         paths = ["./SJPlot.py"]
+        files = ["my_module.py"]
     </py-config>
 
     <py-script>
@@ -204,7 +205,7 @@ from js import console
 console.log("Python sys.path:")
 console.log(sys.path)
 
-import SJPlot.py
+import SJPlot
 
 from SJPlot import process_audio_web
 
