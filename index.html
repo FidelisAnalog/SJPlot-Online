@@ -199,15 +199,18 @@
     </py-config>
 
     <py-script>
+import sys
+from js import console
+console.log("Python sys.path:")
+console.log(sys.path)
+
+
 from SJPlot import process_audio_web
 
 # Call the web-specific function
 process_audio_web()
 
-import sys
-from js import console
-console.log("Python sys.path:")
-console.log(sys.path)
+
     </py-script>
 
     <script>
