@@ -204,15 +204,29 @@
     <py-script>
 import sys
 from js import console
+
+# Log Python sys.path for debugging
 console.log("Python sys.path:")
 console.log(sys.path)
 
+# Import SJPlot module
 import SJPlot
 
-from SJPlot import process_audio_web
+# Define a function to be called after file upload
+from js import window
 
-# Call the web-specific function
-process_audio_web()
+def process_audio_if_ready():
+    if hasattr(window, 'js_file0_data') and window.js_file0_data is not None:
+        try:
+            from SJPlot import process_audio_web
+            process_audio_web()
+        except Exception as e:
+            console.error(f"Error processing audio: {e}")
+    else:
+        console.log("Files not uploaded yet. Waiting for user input.")
+
+# Attach the function to the window object for manual invocation
+window.pyProcessAudio = process_audio_if_ready
 
 
     </py-script>
