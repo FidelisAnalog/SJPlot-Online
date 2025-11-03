@@ -1074,17 +1074,30 @@ if __name__ == "__main__":
 
 def process_audio_web():
     try:
-        # Retrieve file data from the web interface
-        file0_bytes = document.getElementById('file0').files[0].arrayBuffer()
-        file1_bytes = document.getElementById('file1').files[0].arrayBuffer() if document.getElementById('file1').files.length > 0 else None
+        # Retrieve file data from JavaScript variables
+        from js import window, console
+        import io
+        import base64
+        from scipy.io.wavfile import read
+        import matplotlib.pyplot as plt
 
-        # Convert file data to byte streams
+        file0_bytes = window.js_file0_data
+        file1_bytes = window.js_file1_data  # May be None
+
+        # Debugging: Log the received data
+        console.log("Processing file0_bytes:", file0_bytes)
+        console.log("Processing file1_bytes:", file1_bytes)
+
+        # Convert file0_bytes to audio data
         with io.BytesIO(file0_bytes) as wav_io:
             Fs, audio0 = read(wav_io)
 
-        if file1_bytes:
+        # Convert file1_bytes to audio data if it exists
+        if file1_bytes is not None:
             with io.BytesIO(file1_bytes) as wav_io:
                 Fs1, audio1 = read(wav_io)
+        else:
+            audio1 = None  # Handle the absence of the second file
 
         # Process audio and generate plots
         # ...existing processing logic...
@@ -1096,7 +1109,7 @@ def process_audio_web():
         img_data = base64.b64encode(buf.read()).decode()
 
         # Update the web interface with results
-        document.getElementById('output').innerHTML = f'<img src="data:image/png;base64,{img_data}" />'
+        window.document.getElementById('output').innerHTML = f'<img src="data:image/png;base64,{img_data}" />'
 
     except Exception as e:
         console.error(f"Error processing audio: {e}")
