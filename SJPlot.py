@@ -613,6 +613,174 @@ def slice_audio(signal, Fs, test_record):
     return left_slice, right_slice
 
 
+
+
+
+
+# ============================================================================
+# WEB API FUNCTIONS - For PyScript/Browser Integration
+# ============================================================================
+
+def process_audio_web(file0_bytes, config, file1_bytes=None):
+    """
+    Web-compatible version of SJPlot processing.
+    
+    Args:
+        file0_bytes: bytes object of first WAV file
+        config: dict with keys: plot_style, riaa_mode, riaa_inverse, normalize
+        file1_bytes: optional bytes object of second WAV file
+    
+    Returns:
+        dict with 'html' key containing complete result HTML
+    """
+    import io
+    import base64
+    import time
+    
+    try:
+        start_time = time.time()
+        
+        # Process first file
+        with io.BytesIO(file0_bytes) as wav_io:
+            Fs, audio0 = read(wav_io)
+        
+        # Convert audio format
+        if audio0.dtype == np.int16:
+            audio0 = audio0.astype(np.float32) / 32768.0
+        elif audio0.dtype == np.int32:
+            audio0 = audio0.astype(np.float32) / 2147483648.0
+        audio0 = audio0.T
+        
+        # Apply RIAA filtering if requested
+        if config.get('riaa_mode', 0) != 0:
+            audio0 = riaaiir(audio0, Fs, config['riaa_mode'], config.get('riaa_inverse', 0))
+        
+        # Create plot data using existing function
+        # We need to set global variables that createplotdata expects
+        global NORMALIZE, STR100, FILE0NORM
+        NORMALIZE = config.get('normalize', 1000)
+        STR100 = 0  # Not supported in web version for now
+        FILE0NORM = 0
+        
+        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(audio0, Fs)
+        
+        # Process second file if provided
+        has_file1 = file1_bytes is not None
+        if has_file1:
+            with io.BytesIO(file1_bytes) as wav_io:
+                Fs1, audio1 = read(wav_io)
+            
+            if audio1.dtype == np.int16:
+                audio1 = audio1.astype(np.float32) / 32768.0
+            elif audio1.dtype == np.int32:
+                audio1 = audio1.astype(np.float32) / 2147483648.0
+            audio1 = audio1.T
+            
+            if config.get('riaa_mode', 0) != 0:
+                audio1 = riaaiir(audio1, Fs1, config['riaa_mode'], config.get('riaa_inverse', 0))
+            
+            # Normalize to first file
+            norm_val = [ao0[find_nearest(fo0, NORMALIZE)]]
+            fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(audio1, Fs1, [1], norm_val)
+        
+        # Generate plot using existing plotting logic
+        plt.rcParams["xtick.minor.visible"] = True
+        plt.rcParams["ytick.minor.visible"] = True
+        
+        plot_style = config.get('plot_style', 4)
+        
+        if plot_style == 4:
+            fig, axs = plt.subplots(2, 1, sharex=True, figsize=(14, 10))
+            axs[0].semilogx(fo0, ao0, color='#0000ff', linewidth=2)
+            if has_file1:
+                axs[0].semilogx(fo1, ao1, color='#ff0000', linewidth=2)
+            axs[0].set_ylim(-5, 5)
+            axs[0].set_ylabel("Amplitude (dB)")
+            axs[0].grid(True, which="major", ls="-", color="black", alpha=0.3)
+            axs[0].grid(True, which="minor", ls="-", color="gainsboro", alpha=0.2)
+            
+            axs[1].semilogx(fo0, ao0, color='#0000ff', linewidth=2)
+            axs[1].semilogx(fo2h0, ao2h0, color='#0080ff', linewidth=1, alpha=0.8)
+            axs[1].semilogx(fo3h0, ao3h0, color='#00dfff', linewidth=1, alpha=0.8)
+            if len(aox0) > 0:
+                axs[1].semilogx(fox0, aox0, color='#0000ff', linestyle='--', linewidth=1.5)
+            if has_file1:
+                axs[1].semilogx(fo1, ao1, color='#ff0000', linewidth=2)
+                axs[1].semilogx(fo2h1, ao2h1, color='#ff8000', linewidth=1, alpha=0.8)
+                axs[1].semilogx(fo3h1, ao3h1, color='#ffdf00', linewidth=1, alpha=0.8)
+                if len(aox1) > 0:
+                    axs[1].semilogx(fox1, aox1, color='#ff0000', linestyle='--', linewidth=1.5)
+            axs[1].set_ylabel("Amplitude (dB)")
+            axs[1].set_xlabel("Frequency (Hz)")
+            axs[1].grid(True, which="major", ls="-", color="black", alpha=0.3)
+            axs[1].grid(True, which="minor", ls="-", color="gainsboro", alpha=0.2)
+            
+            for ax in axs:
+                ax.set_xticks([20, 50, 100, 500, 1000, 5000, 10000, 20000])
+                ax.set_xticklabels(['20', '50', '100', '500', '1k', '5k', '10k', '20k'])
+                anchored_text = AnchoredText('SJ', frameon=False, borderpad=0, pad=0.03,
+                                            loc=1, bbox_transform=ax.transAxes,
+                                            prop={'color':'m', 'fontsize':25, 'alpha':0.4, 'style':'oblique'})
+                ax.add_artist(anchored_text)
+            
+            gs = GridSpec(2, 1, height_ratios=[1, 2])
+            axs[0].set_position(gs[0].get_position(fig))
+            axs[1].set_position(gs[1].get_position(fig))
+        else:
+            # Simple single plot for other styles
+            fig, ax = plt.subplots(1, 1, figsize=(14, 6))
+            ax.semilogx(fo0, ao0, color='#0000ff', linewidth=2)
+            if has_file1:
+                ax.semilogx(fo1, ao1, color='#ff0000', linewidth=2)
+            ax.set_ylabel("Amplitude (dB)")
+            ax.set_xlabel("Frequency (Hz)")
+            ax.set_ylim(-5, 5)
+            ax.grid(True, which="major", ls="-", color="black", alpha=0.3)
+            ax.grid(True, which="minor", ls="-", color="gainsboro", alpha=0.2)
+            ax.set_xticks([20, 50, 100, 500, 1000, 5000, 10000, 20000])
+            ax.set_xticklabels(['20', '50', '100', '500', '1k', '5k', '10k', '20k'])
+        
+        plt.suptitle("SJPlot Online - Full Analysis", fontsize=16)
+        plt.tight_layout()
+        
+        # Convert plot to base64
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=192, bbox_inches='tight')
+        buf.seek(0)
+        img_data = base64.b64encode(buf.read()).decode()
+        plt.clf()  # Clear the current figure
+        
+        # Calculate results
+        deltaadj = ao0[find_nearest(fo0, NORMALIZE)]
+        deltah0 = round(max(ao0 - deltaadj), 1)
+        deltal0 = abs(round(min(ao0 - deltaadj), 1))
+        
+        # Generate HTML result
+        html = f'''<div style="background:white; padding:20px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+            <h3>✅ Complete</h3>
+            <img src="data:image/png;base64,{img_data}" style="width:100%;" />
+            <div style="margin-top:20px; padding:20px; background:#f8f9ff; border-radius:10px;">
+                <p><strong>Range:</strong> +{deltah0}dB, −{deltal0}dB | <strong>SR:</strong> {Fs}Hz</p>
+                <p><strong>Features:</strong> FFT ✓ RIAA ✓ Harmonics ✓ Crosstalk ✓</p>
+                <p><strong>Processing time:</strong> {time.time() - start_time:.2f}s</p>
+            </div></div>'''
+        
+        return {'html': html, 'success': True}
+        
+    except Exception as e:
+        return {'html': f'<div style="color:red; padding:20px;"><strong>Error:</strong> {str(e)}</div>', 'success': False}
+
+
+def setup_web_globals():
+    """Initialize global variables needed for web processing"""
+    global NORMALIZE, STR100, FILE0NORM, ONEKFSTART, END_F
+    NORMALIZE = 1000
+    STR100 = 0
+    FILE0NORM = 0
+    ONEKFSTART = 0
+    END_F = 20000
+
+
 if __name__ == "__main__":
 
 
