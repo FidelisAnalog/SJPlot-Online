@@ -30,6 +30,7 @@ import configparser
 import io
 import base64
 from js import document, console
+import time
 
 
 __version__ = "18.3.9"
@@ -1078,8 +1079,11 @@ def process_audio_web():
         from js import window, console
         import io
         import base64
+        import numpy as np
         from scipy.io.wavfile import read
         import matplotlib.pyplot as plt
+
+        start_time = time.time()
 
         # Convert JsProxy to bytes
         file0_bytes = bytes(window.js_file0_data.to_py())
@@ -1101,13 +1105,24 @@ def process_audio_web():
         else:
             audio1 = None  # Handle the absence of the second file
 
+        # Ensure audio data is in NumPy array format
+        audio0 = np.array(audio0)
+        if audio1 is not None:
+            audio1 = np.array(audio1)
+
         # Debugging: Log the audio data shapes
         console.log("Audio0 shape:", audio0.shape)
         if audio1 is not None:
             console.log("Audio1 shape:", audio1.shape)
 
+        # Measure time for audio processing
+        processing_start = time.time()
+
         # Process audio and generate plots
         # ...existing processing logic...
+
+        processing_end = time.time()
+        console.log("Audio processing time:", processing_end - processing_start)
 
         # Convert plot to base64 for web output
         buf = io.BytesIO()
@@ -1117,6 +1132,9 @@ def process_audio_web():
 
         # Update the web interface with results
         window.document.getElementById('output').innerHTML = f'<img src="data:image/png;base64,{img_data}" />'
+
+        end_time = time.time()
+        console.log("Total processing time:", end_time - start_time)
 
     except Exception as e:
         console.error(f"Error processing audio: {e}")
