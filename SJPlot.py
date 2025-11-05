@@ -1154,6 +1154,15 @@ def main():
 
         # Update the web interface with results
         window.document.getElementById('output').innerHTML = f'<img src="data:image/png;base64,{img_data}" />'
+        
+        # Clear loading spinner and update status
+        window.document.getElementById('loading').classList.remove('active')
+        status_elem = window.document.getElementById('status')
+        status_elem.textContent = '✅ Analysis Complete!'
+        status_elem.className = 'success'
+        
+        # Re-enable analyze button
+        window.document.getElementById('analyzeBtn').disabled = False
 
     else:
         plt.savefig(PLOT_INFO.replace(' / ', '_') +'.png', bbox_inches='tight', pad_inches=.5, dpi=192)
