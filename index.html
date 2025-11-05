@@ -220,6 +220,9 @@
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <p><strong>Processing Full SJPlot Analysis...</strong></p>
+            <p id="progressStatus" style="font-style: italic; color: #666; margin-top: 10px; min-height: 20px;">
+                Initializing...
+            </p>
         </div>
         <div id="output"></div>
         
@@ -230,10 +233,9 @@
 
     <py-config>
         packages = ["numpy", "scipy", "matplotlib"]
+        terminal = false
         [files]
             "http://localhost:8000/SJPlot.py" = "./SJPlot.py"
-
-
     </py-config>
 
     <py-script>

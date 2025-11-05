@@ -36,28 +36,69 @@ import time
 __version__ = "18.4.0"
 
 
+class WebStatusHandler(logging.Handler):
+    """Custom logging handler for web environment that updates UI status."""
+    def emit(self, record):
+        try:
+            # Get just the message text (everything after level name)
+            msg = self.format(record)
+            # Extract message after "INFO - " or "DEBUG - " etc
+            if ' - ' in msg:
+                status_text = msg.split(' - ', 2)[-1]  # Get everything after second dash
+            else:
+                status_text = msg
+            
+            # Update UI status element
+            from js import document
+            status_element = document.getElementById('progressStatus')
+            if status_element:
+                status_element.textContent = status_text
+                
+            # Also log to console for debugging
+            from js import console
+            console.log(msg)
+        except Exception:
+            pass  # Silently fail if UI element doesn't exist
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-fh = logging.StreamHandler()
-fh_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-fh.setFormatter(fh_formatter)
-logger.addHandler(fh)
 logger.propagate = False
 
 def get_environment():
     """
-    Detect the runtime environment.
+    Detect the runtime environment and configure logging appropriately.
     Returns:
         'web' if running in a PyScript environment.
         'standalone' if running in a standard Python environment.
     """
     try:
         import pyscript  # PyScript module is only available in the web environment
+        
+        # Configure logging for web environment
+        # Clear any existing handlers first
+        logger.handlers.clear()
+        
+        # Add custom web handler that updates UI
+        web_handler = WebStatusHandler()
+        web_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        web_handler.setFormatter(web_formatter)
+        logger.addHandler(web_handler)
+        
         logger.info(f"Running from PyScript")
         return 'web'
     except ImportError:
+        # Configure logging for standalone environment
+        # Clear any existing handlers first
+        logger.handlers.clear()
+        
+        # Add standard stream handler for console output
+        stream_handler = logging.StreamHandler()
+        stream_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        stream_handler.setFormatter(stream_formatter)
+        logger.addHandler(stream_handler)
+        
         logger.info(f"Running Standalone")
         return 'standalone'
 
