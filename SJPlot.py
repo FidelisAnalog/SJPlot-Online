@@ -79,9 +79,13 @@ class WebStatusHandler(logging.Handler):
                 # We're in a worker - use pyscript to communicate with main thread
                 try:
                     from pyscript import sync
-                    # Call the main thread function
-                    sync.updateProgressStatus(status_text)
-                    console.log(f"✓ Status sent from worker: '{status_text}'")
+                    # Check if the function is available (it's exposed by main thread)
+                    if hasattr(sync, 'updateProgressStatus'):
+                        sync.updateProgressStatus(status_text)
+                        console.log(f"✓ Status sent from worker: '{status_text}'")
+                    else:
+                        # Function not yet exposed, just log to console
+                        console.log(f"⏳ Waiting for sync: '{status_text}'")
                 except Exception as e:
                     console.error(f"Error sending status from worker: {e}")
             else:
