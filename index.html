@@ -66,6 +66,12 @@
             border-radius: 8px;
             font-size: 1em;
         }
+        .config-item select:disabled {
+            background-color: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
         .checkbox-item { display: flex; align-items: center; gap: 10px; }
         .checkbox-item input[type="checkbox"] { width: 20px; height: 20px; }
         .analyze-btn {
@@ -166,9 +172,32 @@
                     <label>Normalize (Hz)</label>
                     <input type="number" id="normalize" value="1000" />
                 </div>
+                <div class="config-item">
+                    <label>Test Record</label>
+                    <select id="testRecord">
+                        <option value="">None</option>
+                        <option value="TRS1007">TRS1007</option>
+                        <option value="TRS1005">TRS1005</option>
+                        <option value="STR100">STR100</option>
+                        <option value="STR120">STR120</option>
+                        <option value="STR130">STR130</option>
+                        <option value="STR170">STR170</option>
+                        <option value="QR2009">QR2009</option>
+                        <option value="QR2010">QR2010</option>
+                        <option value="XG7001">XG7001</option>
+                        <option value="XG7002">XG7002</option>
+                        <option value="XG7005">XG7005</option>
+                        <option value="DIN45543">DIN45543</option>
+                        <option value="ИЗМ33С0327">ИЗМ33С0327</option>
+                    </select>
+                </div>
                 <div class="config-item checkbox-item">
                     <input type="checkbox" id="riaaInverse" checked />
                     <label>Inverse RIAA</label>
+                </div>
+                <div class="config-item checkbox-item">
+                    <input type="checkbox" id="extractSweeps" />
+                    <label>Extract Sweeps</label>
                 </div>
             </div>
         </div>
@@ -223,11 +252,12 @@ def process_audio_if_ready():
             console.error("File 0 data is missing. Cannot process audio.")
             return
 
-        # Call the process_audio_web function
-        from SJPlot import process_audio_web
-        process_audio_web()
+        # Call the main function from SJPlot module
+        SJPlot.main()
     except Exception as e:
         console.error(f"Error processing audio: {e}")
+        import traceback
+        console.error(traceback.format_exc())
 
 # Attach the function to the window object for manual invocation
 window.pyProcessAudio = process_audio_if_ready
@@ -416,6 +446,24 @@ window.pyProcessAudio = process_audio_if_ready
         document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
         document.getElementById('fileInput1').addEventListener('change', e => handleFile(e.target.files[0], 1));
         
+        // Handle Extract Sweeps checkbox to enable/disable Test Record dropdown
+        document.getElementById('extractSweeps').addEventListener('change', function(e) {
+            const testRecordSelect = document.getElementById('testRecord');
+            if (e.target.checked) {
+                testRecordSelect.disabled = false;
+                // Select a default if none selected
+                if (!testRecordSelect.value) {
+                    testRecordSelect.value = 'STR100';
+                }
+            } else {
+                testRecordSelect.disabled = true;
+                testRecordSelect.value = '';
+            }
+        });
+        
+        // Initialize Test Record dropdown as disabled
+        document.getElementById('testRecord').disabled = true;
+        
         function handleFile(file, index) {
             if (!file || !file.name.toLowerCase().endsWith('.wav')) {
                 alert('Please select a WAV file');
@@ -463,7 +511,9 @@ window.pyProcessAudio = process_audio_if_ready
                     plot_style: parseInt(document.getElementById('plotStyle').value),
                     riaa_mode: parseInt(document.getElementById('riaaMode').value),
                     riaa_inverse: document.getElementById('riaaInverse').checked ? 1 : 0,
-                    normalize: parseInt(document.getElementById('normalize').value)
+                    normalize: parseInt(document.getElementById('normalize').value),
+                    extract_sweeps: document.getElementById('extractSweeps').checked ? 1 : 0,
+                    test_record: document.getElementById('testRecord').value
                 };
                 
                 try {

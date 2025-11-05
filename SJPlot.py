@@ -33,7 +33,7 @@ from js import document, console
 import time
 
 
-__version__ = "18.3.9"
+__version__ = "18.4.0"
 
 
 
@@ -45,6 +45,21 @@ fh_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 fh.setFormatter(fh_formatter)
 logger.addHandler(fh)
 logger.propagate = False
+
+def get_environment():
+    """
+    Detect the runtime environment.
+    Returns:
+        'web' if running in a PyScript environment.
+        'standalone' if running in a standard Python environment.
+    """
+    try:
+        import pyscript  # PyScript module is only available in the web environment
+        logger.info(f"Running from PyScript")
+        return 'web'
+    except ImportError:
+        logger.info(f"Running Standalone")
+        return 'standalone'
 
 
 def get_config():
@@ -132,6 +147,19 @@ def get_config():
                 else:
                     combined_config[key] = value
 
+    # Check for web configuration (from index.html via PyScript)
+    try:
+        from js import window
+        if hasattr(window, 'js_config'):
+            web_config = window.js_config.to_py()  # Convert JsProxy to Python dict
+            logger.info("Applying web configuration overrides.")
+            for key, value in web_config.items():
+                if key in combined_config:
+                    combined_config[key] = value
+    except ImportError:
+        # Not running in a PyScript environment, continue as standalone
+        pass
+
 
     # Apply command-line arguments, giving precedence to command-line input
     for key, value in args.items():
@@ -145,6 +173,7 @@ def get_config():
     # Automatically set str100 to 1 if test_record = str100 is provided
     if combined_config["test_record"].casefold() == "str100".casefold():
         combined_config["str100"] = 1
+
 
     return combined_config
 
@@ -398,10 +427,37 @@ def normxg7001(signal, Fs):
     return signal
 
 
-def get_audio(input_file, extract_sweeps=0, test_record=None, save_sweeps=0):
+def get_audio(input_data, environment='standalone', extract_sweeps=0, test_record=None, save_sweeps=0):
 
+    '''
     logger.info(f"Reading: {input_file}")
-    Fs, audio = read(input_file)
+    
+    if environment == 'web':
+        # Handle byte stream
+        logger.info(f"Reading: Byte stream input ({input_file.getbuffer().nbytes} bytes)")
+        with io.BytesIO(input_data) as wav_io:
+            Fs, audio = read(wav_io)
+    else:
+        # Handle file path
+        logger.info(f"Reading: {input_file}")
+        Fs, audio = read(input_data)
+    '''
+
+    if environment == 'web':
+        if not input_data:
+            raise ValueError("No input data provided for web environment")
+        try:
+            size = input_data.getbuffer().nbytes
+        except AttributeError:
+            size = len(input_data) if input_data else 0
+        logger.info(f"Reading input for web environment ({size} bytes)")
+        with io.BytesIO(input_data) as wav_io:
+            Fs, audio = read(wav_io)
+    else:
+        logger.info(f"Reading input from file path: {input_data}")
+        Fs, audio = read(input_data)
+
+
 
     logger.info(f"Sample Rate: {Fs}")
 
@@ -617,13 +673,11 @@ def slice_audio(signal, Fs, test_record):
     return left_slice, right_slice
 
 
-
-
-
-if __name__ == "__main__":
-
-
-
+def main():
+    """
+    Main entry point for SJPlot analysis.
+    Can be called from standalone mode or web environment.
+    """
     config = get_config()
 
     INPUT_FILE_0 = config["file_0"]
@@ -664,13 +718,34 @@ if __name__ == "__main__":
 
     logger.info(f"SJPlot {__version__}")
 
+    environment = get_environment()
 
-    
+    '''
+    if environment == 'web':
+        from js import window
+        file0_bytes = bytes(window.js_file0_data.to_py())
+        file1_bytes = bytes(window.js_file1_data.to_py()) if window.js_file1_data else None
+
+        audio0, Fs0 = get_audio(file0_bytes, environment)
+        if file1_bytes:
+            audio1, Fs1 = get_audio(file1_bytes, environment)
+    else:
+        audio0, Fs0 = get_audio("path_to_file0.wav", environment)
+        audio1, Fs1 = get_audio("path_to_file1.wav", environment)
+    '''
 
 
     if EXTRACT_SWEEPS == 1:
-        input_sig_1, input_sig_2, Fs = get_audio(INPUT_FILE_0, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
-        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig_1, Fs)
+        input_sig_1, input_sig_2, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
+        
+        if environment == 'web':
+            from js import window
+            file0_bytes = bytes(window.js_file0_data.to_py())
+            input_sig_0, input_sig_1, Fs = get_audio(file0_bytes, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
+        else:
+            input_sig_0, input_sig_1, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
+
+        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig_0, Fs)
 
         deltaadj = ao0[find_nearest(fo0, NORMALIZE)]
         deltah0 = round((max(ao0 - deltaadj)), ROUND_LEVEL)
@@ -678,7 +753,7 @@ if __name__ == "__main__":
 
         logger.info(f"Left crosstalk @1kHz: {aox0[find_nearest(fox0, 1000)]:.2f}dB")
 
-        fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig_2, Fs)
+        fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig_1, Fs)
  
         deltaadj = ao1[find_nearest(fo1, NORMALIZE)]
         deltah1 = round((max(ao1 - deltaadj)), ROUND_LEVEL)
@@ -690,9 +765,7 @@ if __name__ == "__main__":
 
 
     else:
-
-
-        input_sig, _, Fs = get_audio(INPUT_FILE_0)
+        input_sig, _, Fs = get_audio(INPUT_FILE_0, environment)
         fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig, Fs)
 
         deltaadj = ao0[find_nearest(fo0, NORMALIZE)]
@@ -704,7 +777,7 @@ if __name__ == "__main__":
 
 
         if INPUT_FILE_1:
-            input_sig, _, Fs = get_audio(INPUT_FILE_1)
+            input_sig, _, Fs = get_audio(INPUT_FILE_1, environment)
             fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig, Fs)
      
             deltaadj = ao1[find_nearest(fo1, NORMALIZE)]
@@ -1057,6 +1130,7 @@ if __name__ == "__main__":
 
     now = datetime.now()
 
+    '''
     if INPUT_FILE_1:
         plt.figtext(.17, .118, "SJPlot v" + __version__ + "\n" + INPUT_FILE_0 + "\n" + INPUT_FILE_1 + "\n" + \
             now.strftime("%b %d, %Y %H:%M"), fontsize=6)
@@ -1065,14 +1139,29 @@ if __name__ == "__main__":
             now.strftime("%b %d, %Y %H:%M"), fontsize=6)
 
     plt.figtext(.125, 0, EQUIP_INFO, alpha=.75, fontsize=8)
-     
-    plt.savefig(PLOT_INFO.replace(' / ', '_') +'.png', bbox_inches='tight', pad_inches=.5, dpi=192)
+    '''
 
-    plt.show()
+    if environment == 'web':
+        from js import window
+        import io
+        import base64
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=192, bbox_inches='tight', pad_inches=.5)
+        buf.seek(0)
+        img_data = base64.b64encode(buf.read()).decode()
+        buf.close()
+
+        # Update the web interface with results
+        window.document.getElementById('output').innerHTML = f'<img src="data:image/png;base64,{img_data}" />'
+
+    else:
+        plt.savefig(PLOT_INFO.replace(' / ', '_') +'.png', bbox_inches='tight', pad_inches=.5, dpi=192)
+        plt.show()
 
     logger.info(f"Done!")
 
-
+'''
 def process_audio_web():
     try:
         # Retrieve file data from JavaScript variables
@@ -1170,3 +1259,8 @@ def convert_plot_to_base64(fig):
     buf.close()
 
     return img_data
+'''
+
+
+if __name__ == "__main__":
+    main()
