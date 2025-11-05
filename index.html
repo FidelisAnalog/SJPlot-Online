@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SJPlot Online</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.8.2/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.8.2/core.js"></script>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -233,9 +233,6 @@
 
     <py-config>
         packages = ["numpy", "scipy", "matplotlib"]
-        [interpreter]
-            main = "pyodide"
-            type = "worker"
         [files]
             "http://localhost:8000/SJPlot.py" = "./SJPlot.py"
 
