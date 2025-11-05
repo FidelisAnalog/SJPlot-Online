@@ -29,8 +29,13 @@ import argparse
 import configparser
 import io
 import base64
-from js import document, console
 import time
+
+# Import console for web environment (available in workers)
+try:
+    from js import console
+except ImportError:
+    console = None
 
 
 __version__ = "18.4.0"
