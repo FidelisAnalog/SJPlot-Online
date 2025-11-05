@@ -243,12 +243,22 @@
 from pyscript import workers
 from js import window, console
 
+# Function that will be called by worker to update status
+def update_progress_from_worker(status_text):
+    """Called by worker via sync to update UI"""
+    window.updateProgressStatus(status_text)
+
 async def process_audio_wrapper():
     """Called from JavaScript to start processing in worker"""
     try:
         console.log("Main thread: Getting worker reference...")
         worker = await workers["audio-worker"]
-        console.log("Main thread: Worker obtained, calling process_audio...")
+        console.log("Main thread: Worker obtained, exposing sync functions...")
+        
+        # Expose function to worker so it can update status
+        worker.sync.updateProgressStatus = update_progress_from_worker
+        
+        console.log("Main thread: Calling process_audio...")
         await worker.process_audio()
         console.log("Main thread: Worker processing complete")
     except Exception as e:
@@ -338,13 +348,6 @@ __export__ = ['process_audio']
             if (window.pyProcessAudio) {
                 console.log('PyScript main thread function found - ready!');
                 pyScriptReady = true;
-                
-                // Set up pyscript.sync for worker communication
-                if (window.pyscript) {
-                    window.pyscript.sync = window.pyscript.sync || {};
-                    window.pyscript.sync.updateProgressStatus = window.updateProgressStatus;
-                    console.log('pyscript.sync.updateProgressStatus registered');
-                }
                 
                 updateAnalyzeButtonState();
                 document.getElementById('pyscriptStatus').style.display = 'none';

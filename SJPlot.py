@@ -798,7 +798,13 @@ def main():
 
     # Get file data based on environment with memory optimization
     if environment == 'web':
-        from js import window
+        # Check if we're in a worker or main thread
+        try:
+            from js import window
+        except ImportError:
+            # We're in a worker, use pyscript.window instead
+            from pyscript import window
+        
         # File 0 - More efficient data conversion with memory management
         file0_array = window.js_file0_data.to_py()
         file0_data = bytes(file0_array)
