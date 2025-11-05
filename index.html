@@ -231,7 +231,7 @@
     <py-config>
         packages = ["numpy", "scipy", "matplotlib"]
         [files]
-            "http://localhost:8000/SJPlot.py" = "./SJPlot.py"
+            "https://code.myhi.fi/SJPlot-Online/SJPlot.py" = "./SJPlot.py"
 
 
     </py-config>
@@ -239,10 +239,6 @@
     <py-script>
 import sys
 from js import console, window
-
-# Log Python sys.path for debugging
-console.log("Python sys.path:")
-console.log(sys.path)
 
 # Import SJPlot module
 import SJPlot
