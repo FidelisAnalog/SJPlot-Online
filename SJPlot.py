@@ -736,7 +736,7 @@ def main():
 
 
     if EXTRACT_SWEEPS == 1:
-        input_sig_1, input_sig_2, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
+        #input_sig_1, input_sig_2, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
         
         if environment == 'web':
             from js import window
