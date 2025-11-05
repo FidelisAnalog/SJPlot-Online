@@ -297,30 +297,6 @@ __all__ = ['process_audio_if_ready']
         // Test CDN connectivity first
         testPyScriptCDN();
         
-        // Listen for PyScript events properly
-        document.addEventListener('py:ready', function() {
-            console.log('py:ready event fired - PyScript is ready!');
-            pyScriptReady = true;
-            updateAnalyzeButtonState();
-            // Stop any ongoing polling
-            pollCount = 999; 
-        });
-        
-        document.addEventListener('py:all-done', function() {
-            console.log('py:all-done event fired - PyScript is ready!');
-            pyScriptReady = true;
-            updateAnalyzeButtonState();
-            // Stop any ongoing polling
-            pollCount = 999;
-        });
-        
-        // Also listen for other possible events
-        document.addEventListener('pyscript:ready', function() {
-            console.log('pyscript:ready event fired');
-            pyScriptReady = true;
-            updateAnalyzeButtonState();
-        });
-        
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, starting PyScript checks...');
         });
