@@ -36,11 +36,21 @@ import time
 __version__ = "18.4.0"
 
 
+# Try to import js module for web environment
+try:
+    from js import document, console
+    _IS_WEB_ENV = True
+except ImportError:
+    _IS_WEB_ENV = False
+
+
 class WebStatusHandler(logging.Handler):
     """Custom logging handler for web environment that updates UI status."""
     def emit(self, record):
+        if not _IS_WEB_ENV:
+            return
+        
         try:
-            from js import document, console
             # Get just the message text (everything after level name)
             msg = self.format(record)
             # Extract message after "INFO - " or "DEBUG - " etc
@@ -53,11 +63,15 @@ class WebStatusHandler(logging.Handler):
             status_element = document.getElementById('progressStatus')
             if status_element:
                 status_element.textContent = status_text
+                console.log(f"Status updated: {status_text}")
+            else:
+                console.log("progressStatus element not found")
                 
-            # Also log to console for debugging
+            # Also log full message to console for debugging
             console.log(msg)
-        except Exception:
-            pass  # Silently fail if UI element doesn't exist
+        except Exception as e:
+            if _IS_WEB_ENV:
+                console.error(f"WebStatusHandler error: {e}")
 
 
 # Configure logging
@@ -66,14 +80,14 @@ logger.setLevel(level=logging.INFO)
 logger.propagate = False
 
 # Set up handler based on environment (at module load time)
-try:
-    from js import document
+if _IS_WEB_ENV:
     # We're in web mode - use WebStatusHandler
     web_handler = WebStatusHandler()
     web_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     web_handler.setFormatter(web_formatter)
     logger.addHandler(web_handler)
-except ImportError:
+    console.log("WebStatusHandler added to logger")
+else:
     # We're in standalone mode - use StreamHandler
     stream_handler = logging.StreamHandler()
     stream_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
