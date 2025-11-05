@@ -145,14 +145,10 @@
         <p class="subtitle">Full Phono Cartridge Frequency Response Analysis</p>
         
         <div class="upload-area">
-            <h3>📁 Upload Audio File(s)</h3>
+            <h3>📁 Upload Audio File</h3>
             <input type="file" id="fileInput0" style="display:none" accept=".wav" />
-            <input type="file" id="fileInput1" style="display:none" accept=".wav" />
             <button class="upload-btn" onclick="document.getElementById('fileInput0').click()">
-                File 0 (Left/Primary)
-            </button>
-            <button class="upload-btn" onclick="document.getElementById('fileInput1').click()">
-                File 1 (Right) - Optional
+                📄 Select WAV File
             </button>
             <div id="fileInfo" class="file-info" style="display: none;"></div>
         </div>
@@ -186,10 +182,9 @@
                 <div class="config-item">
                     <label>Test Record</label>
                     <select id="testRecord">
-                        <option value="">None</option>
+                        <option value="STR100" selected>STR100</option>
                         <option value="TRS1007">TRS1007</option>
                         <option value="TRS1005">TRS1005</option>
-                        <option value="STR100">STR100</option>
                         <option value="STR120">STR120</option>
                         <option value="STR130">STR130</option>
                         <option value="STR170">STR170</option>
@@ -207,8 +202,8 @@
                     <label>Inverse RIAA</label>
                 </div>
                 <div class="config-item checkbox-item">
-                    <input type="checkbox" id="extractSweeps" />
-                    <label>Extract Sweeps</label>
+                    <input type="checkbox" id="file0norm" />
+                    <label>Normalize to File 0</label>
                 </div>
             </div>
         </div>
@@ -236,7 +231,7 @@
     <py-config>
         packages = ["numpy", "scipy", "matplotlib"]
         [files]
-            "https://code.myhi.fi/SJPlot-Online/SJPlot.py" = "./SJPlot.py"
+            "http://localhost:8000/SJPlot.py" = "./SJPlot.py"
 
 
     </py-config>
@@ -455,25 +450,12 @@ window.pyProcessAudio = process_audio_if_ready
         window.updateUIWithError = updateUIWithError;
         
         document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
-        document.getElementById('fileInput1').addEventListener('change', e => handleFile(e.target.files[0], 1));
         
-        // Handle Extract Sweeps checkbox to enable/disable Test Record dropdown
-        document.getElementById('extractSweeps').addEventListener('change', function(e) {
-            const testRecordSelect = document.getElementById('testRecord');
-            if (e.target.checked) {
-                testRecordSelect.disabled = false;
-                // Select a default if none selected
-                if (!testRecordSelect.value) {
-                    testRecordSelect.value = 'STR100';
-                }
-            } else {
-                testRecordSelect.disabled = true;
-                testRecordSelect.value = '';
-            }
+        // Handle Test Record dropdown to auto-enable when selection is made
+        document.getElementById('testRecord').addEventListener('change', function(e) {
+            // Test Record selection is always available
+            // Extract sweeps will be enabled automatically when test record is selected
         });
-        
-        // Initialize Test Record dropdown as disabled
-        document.getElementById('testRecord').disabled = true;
         
         function handleFile(file, index) {
             if (!file || !file.name.toLowerCase().endsWith('.wav')) {
@@ -484,11 +466,8 @@ window.pyProcessAudio = process_audio_if_ready
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
                 if (index === 0) file0Data = {name: file.name, bytes: data};
-                else file1Data = {name: file.name, bytes: data};
                 
-                let html = '<strong>Ready:</strong><br>';
-                if (file0Data) html += `📄 ${file0Data.name}<br>`;
-                if (file1Data) html += `📄 ${file1Data.name}`;
+                let html = `<strong>Ready:</strong> 📄 ${file0Data.name}`;
                 document.getElementById('fileInfo').innerHTML = html;
                 document.getElementById('fileInfo').style.display = 'block';
                 updateAnalyzeButtonState();
@@ -526,8 +505,9 @@ window.pyProcessAudio = process_audio_if_ready
                     riaa_mode: parseInt(document.getElementById('riaaMode').value),
                     riaa_inverse: document.getElementById('riaaInverse').checked ? 1 : 0,
                     normalize: parseInt(document.getElementById('normalize').value),
-                    extract_sweeps: document.getElementById('extractSweeps').checked ? 1 : 0,
-                    test_record: document.getElementById('testRecord').value
+                    extract_sweeps: 1, // Always enabled
+                    test_record: document.getElementById('testRecord').value,
+                    file0norm: document.getElementById('file0norm').checked ? 1 : 0
                 };
                 
                 try {
@@ -535,7 +515,7 @@ window.pyProcessAudio = process_audio_if_ready
                     
                     // Set global JS variables that Python can access
                     window.js_file0_data = file0Data.bytes;
-                    window.js_file1_data = file1Data ? file1Data.bytes : null;
+                    window.js_file1_data = null; // Always null since we removed File 1 input
                     window.js_config = config;
                     
                     // Call the Python function asynchronously to allow UI updates
