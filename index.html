@@ -390,7 +390,10 @@ __all__ = ['process_audio_if_ready']
             console.log('pyScriptReady:', pyScriptReady);
             const pyWorker = document.querySelector('script[type="py"][worker]');
             console.log('Worker element:', !!pyWorker);
-            console.log('Worker interpreter:', pyWorker ? !!pyWorker.interpreter : 'N/A');
+            if (pyWorker) {
+                console.log('Worker properties:', Object.keys(pyWorker));
+                console.log('Worker interpreter:', pyWorker.interpreter);
+            }
             console.log('window.pyscript:', window.pyscript);
             if (window.pyscript) {
                 console.log('pyscript keys:', Object.keys(window.pyscript));
