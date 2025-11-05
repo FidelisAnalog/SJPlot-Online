@@ -69,6 +69,18 @@ class WebStatusHandler(logging.Handler):
                     console.log("✗ updateProgressStatus function not found on window")
             except Exception as inner_e:
                 console.error(f"Error calling updateProgressStatus: {inner_e}")
+            
+            # Yield control to allow browser to repaint
+            import asyncio
+            try:
+                # This allows the browser event loop to process and repaint
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # We're in an async context, yield properly
+                    import time
+                    time.sleep(0.001)  # Tiny sleep to yield
+            except:
+                pass  # If we can't yield, continue anyway
                 
             # Also log full message to console for debugging
             console.log(msg)
