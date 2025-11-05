@@ -233,7 +233,7 @@ def find_nearest(array, value):
     return idx
 
 
-def createplotdata(signal, Fs, iteration=[0], norm=[0]):
+def createplotdata(signal, Fs, iteration=[0], norm=[0], onekfstart=0, end_f=20000, str100=0, file0norm=0, normalize=1000):
 
     def interpolate(f, a, minf, maxf, fstep):
         # Ensure inputs are NumPy arrays
@@ -344,27 +344,27 @@ def createplotdata(signal, Fs, iteration=[0], norm=[0]):
     fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = [], [], [], [], [], [], [], []
 
     # Process frequency chunks
-    if ONEKFSTART == 0:
+    if onekfstart == 0:
         fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = process_chunk(signal, Fs, 20, 45, 5, 26.03, fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3)
         fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = process_chunk(signal, Fs, 50, 90, 10, 19.995, fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3)
         fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = process_chunk(signal, Fs, 100, 980, 20, 13.99, fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3)
 
-    fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = process_chunk(signal, Fs, 1000, END_F, 100, 0, fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3)
+    fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3 = process_chunk(signal, Fs, 1000, end_f, 100, 0, fout, aout, foutx, aoutx, fout2, aout2, fout3, aout3)
 
 
 
-    if STR100 == 1:
+    if str100 == 1:
         aout = normstr100(fout, aout)
         aout2 = normstr100(fout2, aout2)
         aout3 = normstr100(fout3, aout3)
         if aoutx:
             aoutx = normstr100(foutx, aoutx)
 
-    if FILE0NORM == 0 and iteration[0] == 0:
-        i = find_nearest(fout, NORMALIZE)
+    if file0norm == 0 and iteration[0] == 0:
+        i = find_nearest(fout, normalize)
         norm[0] = aout[i]
-    elif FILE0NORM == 1:
-        i = find_nearest(fout, NORMALIZE)
+    elif file0norm == 1:
+        i = find_nearest(fout, normalize)
         norm[0] = aout[i]
     aout, aoutx, aout2, aout3 = [amp - norm[0] for amp in (aout, aoutx, aout2, aout3)]
  
@@ -427,7 +427,7 @@ def normxg7001(signal, Fs):
     return signal
 
 
-def get_audio(input_data, environment='standalone', extract_sweeps=0, test_record=None, save_sweeps=0):
+def get_audio(input_data, environment='standalone', extract_sweeps=0, test_record=None, save_sweeps=0, riaa_mode=0, riaa_inverse=False, xg7001=False):
 
     '''
     logger.info(f"Reading: {input_file}")
@@ -486,16 +486,16 @@ def get_audio(input_data, environment='standalone', extract_sweeps=0, test_recor
     else:
         audio = audio.T
 
-    if RIAA_MODE != 0:
-        audio = riaaiir(audio, Fs, RIAA_MODE, RIAA_INVERSE)
+    if riaa_mode != 0:
+        audio = riaaiir(audio, Fs, riaa_mode, riaa_inverse)
         try:
-            audio_2 = riaaiir(audio_2, Fs, RIAA_MODE, RIAA_INVERSE)
+            audio_2 = riaaiir(audio_2, Fs, riaa_mode, riaa_inverse)
         except NameError:
             audio_2 = None
     elif extract_sweeps != 1:
         audio_2 = None
 
-    if XG7001 == 1:
+    if xg7001 == 1:
         audio = normxg7001(audio, Fs)
         try:
             audio_2 = normxg7001(audio_2, Fs)
@@ -741,11 +741,11 @@ def main():
         if environment == 'web':
             from js import window
             file0_bytes = bytes(window.js_file0_data.to_py())
-            input_sig_0, input_sig_1, Fs = get_audio(file0_bytes, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
+            input_sig_0, input_sig_1, Fs = get_audio(file0_bytes, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS, RIAA_MODE, RIAA_INVERSE, XG7001)
         else:
-            input_sig_0, input_sig_1, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
+            input_sig_0, input_sig_1, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS, RIAA_MODE, RIAA_INVERSE, XG7001)
 
-        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig_0, Fs)
+        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig_0, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
 
         deltaadj = ao0[find_nearest(fo0, NORMALIZE)]
         deltah0 = round((max(ao0 - deltaadj)), ROUND_LEVEL)
@@ -753,7 +753,7 @@ def main():
 
         logger.info(f"Left crosstalk @1kHz: {aox0[find_nearest(fox0, 1000)]:.2f}dB")
 
-        fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig_1, Fs)
+        fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig_1, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
  
         deltaadj = ao1[find_nearest(fo1, NORMALIZE)]
         deltah1 = round((max(ao1 - deltaadj)), ROUND_LEVEL)
@@ -765,8 +765,8 @@ def main():
 
 
     else:
-        input_sig, _, Fs = get_audio(INPUT_FILE_0, environment)
-        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig, Fs)
+        input_sig, _, Fs = get_audio(INPUT_FILE_0, environment, riaa_mode=RIAA_MODE, riaa_inverse=RIAA_INVERSE, xg7001=XG7001)
+        fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
 
         deltaadj = ao0[find_nearest(fo0, NORMALIZE)]
         deltah0 = round((max(ao0 - deltaadj)), ROUND_LEVEL)
@@ -777,8 +777,8 @@ def main():
 
 
         if INPUT_FILE_1:
-            input_sig, _, Fs = get_audio(INPUT_FILE_1, environment)
-            fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig, Fs)
+            input_sig, _, Fs = get_audio(INPUT_FILE_1, environment, riaa_mode=RIAA_MODE, riaa_inverse=RIAA_INVERSE, xg7001=XG7001)
+            fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
      
             deltaadj = ao1[find_nearest(fo1, NORMALIZE)]
             deltah1 = round((max(ao1 - deltaadj)), ROUND_LEVEL)
