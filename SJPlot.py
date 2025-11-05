@@ -59,20 +59,16 @@ class WebStatusHandler(logging.Handler):
             else:
                 status_text = msg
             
-            # Use pyscript.display to update UI (works across worker boundary)
+            # Call JavaScript function to update UI (works across worker boundary)
             try:
-                import pyscript
-                # Update via JavaScript evaluation to cross worker boundary
-                pyscript.js_modules.document.getElementById('progressStatus').innerHTML = status_text
-                console.log(f"✓ Status updated to: '{status_text}'")
-            except:
-                # Fallback: try direct DOM access
-                status_element = document.getElementById('progressStatus')
-                if status_element:
-                    status_element.innerHTML = status_text
-                    console.log(f"✓ Status updated (direct) to: '{status_text}'")
+                from js import window
+                if hasattr(window, 'updateProgressStatus'):
+                    window.updateProgressStatus(status_text)
+                    console.log(f"✓ Status sent to main thread: '{status_text}'")
                 else:
-                    console.log("✗ progressStatus element not found!")
+                    console.log("✗ updateProgressStatus function not found on window")
+            except Exception as inner_e:
+                console.error(f"Error calling updateProgressStatus: {inner_e}")
                 
             # Also log full message to console for debugging
             console.log(msg)
