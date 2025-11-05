@@ -720,6 +720,25 @@ def main():
 
     environment = get_environment()
 
+    # Get file data based on environment with memory optimization
+    if environment == 'web':
+        from js import window
+        # File 0 - More efficient data conversion with memory management
+        file0_array = window.js_file0_data.to_py()
+        file0_data = bytes(file0_array)
+        del file0_array  # Free memory immediately
+        
+        # File 1 (if present)
+        if window.js_file1_data:
+            file1_array = window.js_file1_data.to_py()
+            file1_data = bytes(file1_array)
+            del file1_array  # Free memory immediately
+        else:
+            file1_data = None
+    else:
+        file0_data = INPUT_FILE_0
+        file1_data = INPUT_FILE_1
+
     '''
     if environment == 'web':
         from js import window
@@ -736,14 +755,7 @@ def main():
 
 
     if EXTRACT_SWEEPS == 1:
-        #input_sig_1, input_sig_2, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS)
-        
-        if environment == 'web':
-            from js import window
-            file0_bytes = bytes(window.js_file0_data.to_py())
-            input_sig_0, input_sig_1, Fs = get_audio(file0_bytes, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS, RIAA_MODE, RIAA_INVERSE, XG7001)
-        else:
-            input_sig_0, input_sig_1, Fs = get_audio(INPUT_FILE_0, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS, RIAA_MODE, RIAA_INVERSE, XG7001)
+        input_sig_0, input_sig_1, Fs = get_audio(file0_data, environment, EXTRACT_SWEEPS, TEST_RECORD, SAVE_SWEEPS, RIAA_MODE, RIAA_INVERSE, XG7001)
 
         fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig_0, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
 
@@ -765,7 +777,7 @@ def main():
 
 
     else:
-        input_sig, _, Fs = get_audio(INPUT_FILE_0, environment, riaa_mode=RIAA_MODE, riaa_inverse=RIAA_INVERSE, xg7001=XG7001)
+        input_sig, _, Fs = get_audio(file0_data, environment, riaa_mode=RIAA_MODE, riaa_inverse=RIAA_INVERSE, xg7001=XG7001)
         fo0, ao0, fox0, aox0, fo2h0, ao2h0, fo3h0, ao3h0 = createplotdata(input_sig, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
 
         deltaadj = ao0[find_nearest(fo0, NORMALIZE)]
@@ -776,8 +788,8 @@ def main():
             logger.info(f"Left crosstalk @1kHz: {aox0[find_nearest(fox0, 1000)]:.2f}dB")
 
 
-        if INPUT_FILE_1:
-            input_sig, _, Fs = get_audio(INPUT_FILE_1, environment, riaa_mode=RIAA_MODE, riaa_inverse=RIAA_INVERSE, xg7001=XG7001)
+        if file1_data:
+            input_sig, _, Fs = get_audio(file1_data, environment, riaa_mode=RIAA_MODE, riaa_inverse=RIAA_INVERSE, xg7001=XG7001)
             fo1, ao1, fox1, aox1, fo2h1, ao2h1, fo3h1, ao3h1 = createplotdata(input_sig, Fs, onekfstart=ONEKFSTART, end_f=END_F, str100=STR100, file0norm=FILE0NORM, normalize=NORMALIZE)
      
             deltaadj = ao1[find_nearest(fo1, NORMALIZE)]
