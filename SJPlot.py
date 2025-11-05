@@ -59,14 +59,20 @@ class WebStatusHandler(logging.Handler):
             else:
                 status_text = msg
             
-            # Update UI status element - try multiple methods to force update
-            status_element = document.getElementById('progressStatus')
-            if status_element:
-                status_element.innerHTML = status_text  # Use innerHTML instead of textContent
-                status_element.style.display = 'block'  # Force display
+            # Use pyscript.display to update UI (works across worker boundary)
+            try:
+                import pyscript
+                # Update via JavaScript evaluation to cross worker boundary
+                pyscript.js_modules.document.getElementById('progressStatus').innerHTML = status_text
                 console.log(f"✓ Status updated to: '{status_text}'")
-            else:
-                console.log("✗ progressStatus element not found!")
+            except:
+                # Fallback: try direct DOM access
+                status_element = document.getElementById('progressStatus')
+                if status_element:
+                    status_element.innerHTML = status_text
+                    console.log(f"✓ Status updated (direct) to: '{status_text}'")
+                else:
+                    console.log("✗ progressStatus element not found!")
                 
             # Also log full message to console for debugging
             console.log(msg)
