@@ -252,11 +252,23 @@ async def process_audio_wrapper():
     """Called from JavaScript to start processing in worker"""
     try:
         console.log("Main thread: Getting worker reference...")
-        worker = await workers["audio-worker"]
-        console.log("Main thread: Worker obtained, exposing sync functions...")
+        
+        # This will wait for the worker to be ready
+        try:
+            worker = await workers["audio-worker"]
+            console.log("Main thread: Worker obtained successfully")
+        except KeyError as e:
+            console.error(f"Worker 'audio-worker' not found. Available workers: {list(workers.keys())}")
+            raise
+        except Exception as e:
+            console.error(f"Error getting worker: {e}")
+            raise
+        
+        console.log("Main thread: Exposing sync functions...")
         
         # Expose function to worker so it can update status
         worker.sync.updateProgressStatus = update_progress_from_worker
+        console.log("Main thread: Sync function exposed")
         
         console.log("Main thread: Calling process_audio...")
         await worker.process_audio()
@@ -276,8 +288,12 @@ console.log("Main thread: pyProcessAudio registered")
 import sys
 from js import console
 
+console.log("Worker: Initializing...")
+
 # Import SJPlot module
+console.log("Worker: Importing SJPlot...")
 import SJPlot
+console.log("Worker: SJPlot imported successfully")
 
 def process_audio():
     """Process audio in worker thread"""
@@ -293,6 +309,7 @@ def process_audio():
 
 # Export function to main thread
 __export__ = ['process_audio']
+console.log("Worker: Ready and exported process_audio")
     </script>
 
     <script>
