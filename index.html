@@ -239,32 +239,28 @@
 
     <script type="py" worker>
 import sys
-from js import console
 
 # Import SJPlot module
 import SJPlot
 
 def process_audio_if_ready():
     try:
-        from js import window
-        # Debugging: Log the JavaScript variables
-        console.log("js_file0_data:", window.js_file0_data)
-        console.log("js_file1_data:", window.js_file1_data)
-
-        # Check if file data is available
-        if not hasattr(window, 'js_file0_data') or window.js_file0_data is None:
-            console.error("File 0 data is missing. Cannot process audio.")
-            return
+        from js import console
+        from pyscript import sync
+        
+        # Get data from main thread via sync
+        console.log("Worker: Starting audio processing...")
 
         # Call the main function from SJPlot module
         SJPlot.main()
     except Exception as e:
-        console.error(f"Error processing audio: {e}")
+        from js import console
+        console.error(f"Worker error processing audio: {e}")
         import traceback
         console.error(traceback.format_exc())
 
-# Attach the function to the window object for manual invocation
-window.pyProcessAudio = process_audio_if_ready
+# Make function available to be called from main thread
+__all__ = ['process_audio_if_ready']
     </script>
 
     <script>
@@ -497,12 +493,6 @@ window.pyProcessAudio = process_audio_if_ready
                 return;
             }
             
-            // Check if Python function is available
-            if (!window.pyProcessAudio) {
-                alert('Python environment not ready. Please wait a moment and try again.');
-                return;
-            }
-            
             document.getElementById('status').textContent = '🔄 Processing...';
             document.getElementById('status').className = 'processing';
             document.getElementById('loading').classList.add('active');
@@ -524,15 +514,24 @@ window.pyProcessAudio = process_audio_if_ready
                 };
                 
                 try {
-                    console.log('Calling Python function directly...');
+                    console.log('Calling Python worker function...');
                     
-                    // Set global JS variables that Python can access
+                    // Set global JS variables that Python can access via sync
                     window.js_file0_data = file0Data.bytes;
                     window.js_file1_data = null; // Always null since we removed File 1 input
                     window.js_config = config;
                     
-                    // Call the Python function asynchronously to allow UI updates
-                    window.pyProcessAudio();
+                    // Call the worker function
+                    const pyWorker = document.querySelector('script[type="py"][worker]');
+                    if (pyWorker && pyWorker.interpreter) {
+                        pyWorker.interpreter.run('process_audio_if_ready()');
+                    } else {
+                        console.error('PyScript worker not ready');
+                        document.getElementById('status').textContent = '❌ Error: Python worker not initialized';
+                        document.getElementById('status').className = 'error';
+                        document.getElementById('loading').classList.remove('active');
+                        updateAnalyzeButtonState();
+                    }
                     
                 } catch (error) {
                     console.error('Analysis error:', error);
