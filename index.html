@@ -235,19 +235,18 @@
         packages = ["numpy", "scipy", "matplotlib"]
         [files]
             "http://localhost:8000/SJPlot.py" = "./SJPlot.py"
-
-
     </py-config>
 
-    <py-script>
+    <script type="py" worker>
 import sys
-from js import console, window
+from js import console
 
 # Import SJPlot module
 import SJPlot
 
 def process_audio_if_ready():
     try:
+        from js import window
         # Debugging: Log the JavaScript variables
         console.log("js_file0_data:", window.js_file0_data)
         console.log("js_file1_data:", window.js_file1_data)
@@ -266,9 +265,7 @@ def process_audio_if_ready():
 
 # Attach the function to the window object for manual invocation
 window.pyProcessAudio = process_audio_if_ready
-
-
-    </py-script>
+    </script>
 
     <script>
         let file0Data = null, file1Data = null;
