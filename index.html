@@ -456,6 +456,12 @@ window.pyProcessAudio = process_audio_if_ready
             }
         };
         
+        // Expose function to PyScript worker via pyscript.sync
+        if (window.pyscript) {
+            window.pyscript.sync = window.pyscript.sync || {};
+            window.pyscript.sync.updateProgressStatus = window.updateProgressStatus;
+        }
+        
         document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
         
         // Handle Test Record dropdown to auto-enable when selection is made

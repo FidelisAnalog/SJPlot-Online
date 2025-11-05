@@ -38,10 +38,20 @@ __version__ = "18.4.0"
 
 # Try to import js module for web environment
 try:
-    from js import document, console
+    from js import console
+    # Try to import document/window (main thread only)
+    try:
+        from js import document, window
+        _HAS_DOM_ACCESS = True
+    except ImportError:
+        # We're in a worker - no DOM access
+        _HAS_DOM_ACCESS = False
+        document = None
+        window = None
     _IS_WEB_ENV = True
 except ImportError:
     _IS_WEB_ENV = False
+    _HAS_DOM_ACCESS = False
 
 
 class WebStatusHandler(logging.Handler):
@@ -59,27 +69,24 @@ class WebStatusHandler(logging.Handler):
             else:
                 status_text = msg
             
-            # Call JavaScript function to update UI
-            try:
-                from js import window
-                if hasattr(window, 'updateProgressStatus'):
-                    window.updateProgressStatus(status_text)
-                    console.log(f"✓ Status sent: '{status_text}'")
-                    
-                    # Try to yield control using pyodide's runPythonAsync
-                    try:
-                        import pyodide
-                        # Schedule an async sleep to yield control
-                        pyodide.runPythonAsync("""
-import asyncio
-await asyncio.sleep(0)
-""")
-                    except:
-                        pass  # If pyodide method doesn't work, continue
-                else:
-                    console.log("✗ updateProgressStatus function not found on window")
-            except Exception as inner_e:
-                console.error(f"Error calling updateProgressStatus: {inner_e}")
+            # Use pyscript.sync to call main thread function from worker
+            if not _HAS_DOM_ACCESS:
+                # We're in a worker - use pyscript to communicate with main thread
+                try:
+                    from pyscript import sync
+                    # Call the main thread function
+                    sync.updateProgressStatus(status_text)
+                    console.log(f"✓ Status sent from worker: '{status_text}'")
+                except Exception as e:
+                    console.error(f"Error sending status from worker: {e}")
+            else:
+                # We're on main thread - update directly
+                try:
+                    if hasattr(window, 'updateProgressStatus'):
+                        window.updateProgressStatus(status_text)
+                        console.log(f"✓ Status updated: '{status_text}'")
+                except Exception as e:
+                    console.error(f"Error updating status: {e}")
                 
             # Also log full message to console for debugging
             console.log(msg)
