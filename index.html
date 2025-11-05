@@ -334,63 +334,64 @@ __all__ = ['process_audio_if_ready']
             }
             
             pollCount++;
-            console.log(`Poll ${pollCount}: Checking PyScript status...`);
-            console.log('window.pyscript exists:', !!window.pyscript);
+            console.log(`Poll ${pollCount}: Checking PyScript worker status...`);
             
-            // Check for newer PyScript API
+            // Check for worker initialization
+            const pyWorker = document.querySelector('script[type="py"][worker]');
+            if (pyWorker && pyWorker.interpreter) {
+                console.log('PyScript worker interpreter found - ready!');
+                pyScriptReady = true;
+                
+                // Set up pyscript.sync when worker is ready
+                if (window.pyscript) {
+                    window.pyscript.sync = window.pyscript.sync || {};
+                    window.pyscript.sync.updateProgressStatus = window.updateProgressStatus;
+                    console.log('pyscript.sync.updateProgressStatus registered');
+                } else {
+                    console.warn('window.pyscript not available, worker may not be able to update status');
+                }
+                
+                updateAnalyzeButtonState();
+                document.getElementById('pyscriptStatus').style.display = 'none';
+                return;
+            } else {
+                console.log('Worker status:', {
+                    workerElement: !!pyWorker,
+                    interpreter: pyWorker ? !!pyWorker.interpreter : 'no element'
+                });
+            }
+            
+            // Also check for window.pyscript as fallback
             if (window.pyscript) {
                 console.log('window.pyscript keys:', Object.keys(window.pyscript));
-                // In newer versions, just having pyscript object means it's ready
-                console.log('PyScript object found - assuming ready!');
-                pyScriptReady = true;
-                updateAnalyzeButtonState();
-                return;
             }
             
-            // Check for Pyodide directly
-            if (window.pyodide && window.pyodide.runPython) {
-                console.log('Pyodide runPython available - PyScript is ready!');
-                pyScriptReady = true;
-                updateAnalyzeButtonState();
-                return;
-            }
-            
-            if (pollCount < 15) { // Reduced to 15 seconds since events should fire
+            if (pollCount < 30) { // Increase timeout to 30 seconds for worker initialization
                 setTimeout(pollForPyScript, 1000);
             } else {
-                console.error('PyScript polling timed out, but events may have fired');
-                if (!pyScriptReady) {
-                    document.getElementById('pyscriptStatus').innerHTML = `
-                        PyScript polling timed out, but it may still be working.<br>
-                        <a href="javascript:forcePyScriptReady()">Force Ready (recommended)</a> or 
-                        <a href="javascript:location.reload()">Refresh page</a>
-                    `;
-                    document.getElementById('pyscriptStatus').style.color = 'orange';
-                }
+                console.error('PyScript worker polling timed out');
+                document.getElementById('pyscriptStatus').innerHTML = `
+                    PyScript worker initialization timed out.<br>
+                    <a href="javascript:location.reload()">Refresh page</a> or check console for errors.
+                `;
+                document.getElementById('pyscriptStatus').style.color = 'red';
             }
         }
         
         // Also try the window load event as a fallback
         window.addEventListener('load', function() {
-            console.log('Window loaded, starting PyScript polling in 3 seconds...');
+            console.log('Window loaded, starting PyScript worker polling in 3 seconds...');
             setTimeout(pollForPyScript, 3000); // Start polling after 3 seconds
         });
         
-        // Add a manual override for testing
-        window.forcePyScriptReady = function() {
-            console.log('Forcing PyScript ready state...');
-            pyScriptReady = true;
-            updateAnalyzeButtonState();
-            document.getElementById('pyscriptStatus').style.display = 'none';
-            console.log('PyScript manually marked as ready');
-        };
-        
-        // Also add a debug function
+        // Add a debug function
         window.debugPyScript = function() {
             console.log('=== PyScript Debug Info ===');
             console.log('pyScriptReady:', pyScriptReady);
+            const pyWorker = document.querySelector('script[type="py"][worker]');
+            console.log('Worker element:', !!pyWorker);
+            console.log('Worker interpreter:', pyWorker ? !!pyWorker.interpreter : 'N/A');
             console.log('window.pyscript:', window.pyscript);
-            console.log('window.pyodide:', window.pyodide);
             if (window.pyscript) {
                 console.log('pyscript keys:', Object.keys(window.pyscript));
             }
@@ -451,12 +452,6 @@ __all__ = ['process_audio_if_ready']
                 console.error('Main thread: progressStatus element not found');
             }
         };
-        
-        // Expose function to PyScript worker via pyscript.sync
-        if (window.pyscript) {
-            window.pyscript.sync = window.pyscript.sync || {};
-            window.pyscript.sync.updateProgressStatus = window.updateProgressStatus;
-        }
         
         document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
         
