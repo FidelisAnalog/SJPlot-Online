@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="./mini-coi.js" scope="."></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SJPlot Online</title>
@@ -361,12 +362,7 @@ __all__ = ['process_audio_if_ready']
                 });
             }
             
-            // Also check for window.pyscript as fallback
-            if (window.pyscript) {
-                console.log('window.pyscript keys:', Object.keys(window.pyscript));
-            }
-            
-            if (pollCount < 30) { // Increase timeout to 30 seconds for worker initialization
+            if (pollCount < 60) { // Increase to 60 seconds since mini-coi needs to install service worker first
                 setTimeout(pollForPyScript, 1000);
             } else {
                 console.error('PyScript worker polling timed out');
