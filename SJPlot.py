@@ -59,19 +59,22 @@ class WebStatusHandler(logging.Handler):
             else:
                 status_text = msg
             
-            # Update UI status element
+            # Update UI status element - try multiple methods to force update
             status_element = document.getElementById('progressStatus')
             if status_element:
-                status_element.textContent = status_text
-                console.log(f"Status updated: {status_text}")
+                status_element.innerHTML = status_text  # Use innerHTML instead of textContent
+                status_element.style.display = 'block'  # Force display
+                console.log(f"✓ Status updated to: '{status_text}'")
             else:
-                console.log("progressStatus element not found")
+                console.log("✗ progressStatus element not found!")
                 
             # Also log full message to console for debugging
             console.log(msg)
         except Exception as e:
             if _IS_WEB_ENV:
                 console.error(f"WebStatusHandler error: {e}")
+                import traceback
+                console.error(traceback.format_exc())
 
 
 # Configure logging
