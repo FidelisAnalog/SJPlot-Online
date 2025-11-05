@@ -61,16 +61,21 @@ class WebStatusHandler(logging.Handler):
             
             # Call JavaScript function to update UI
             try:
-                from js import window, setTimeout
+                from js import window
                 if hasattr(window, 'updateProgressStatus'):
                     window.updateProgressStatus(status_text)
                     console.log(f"✓ Status sent: '{status_text}'")
                     
-                    # Force browser to repaint by scheduling a microtask
-                    # This creates a break in execution allowing the browser to render
-                    def dummy_callback():
-                        pass
-                    setTimeout(dummy_callback, 0)
+                    # Try to yield control using pyodide's runPythonAsync
+                    try:
+                        import pyodide
+                        # Schedule an async sleep to yield control
+                        pyodide.runPythonAsync("""
+import asyncio
+await asyncio.sleep(0)
+""")
+                    except:
+                        pass  # If pyodide method doesn't work, continue
                 else:
                     console.log("✗ updateProgressStatus function not found on window")
             except Exception as inner_e:
