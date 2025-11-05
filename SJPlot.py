@@ -36,15 +36,49 @@ import time
 __version__ = "18.4.0"
 
 
+class WebStatusHandler(logging.Handler):
+    """Custom logging handler for web environment that updates UI status."""
+    def emit(self, record):
+        try:
+            from js import document, console
+            # Get just the message text (everything after level name)
+            msg = self.format(record)
+            # Extract message after "INFO - " or "DEBUG - " etc
+            if ' - ' in msg:
+                status_text = msg.split(' - ', 2)[-1]  # Get everything after second dash
+            else:
+                status_text = msg
+            
+            # Update UI status element
+            status_element = document.getElementById('progressStatus')
+            if status_element:
+                status_element.textContent = status_text
+                
+            # Also log to console for debugging
+            console.log(msg)
+        except Exception:
+            pass  # Silently fail if UI element doesn't exist
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-fh = logging.StreamHandler()
-fh_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-fh.setFormatter(fh_formatter)
-logger.addHandler(fh)
 logger.propagate = False
+
+# Set up handler based on environment (at module load time)
+try:
+    from js import document
+    # We're in web mode - use WebStatusHandler
+    web_handler = WebStatusHandler()
+    web_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    web_handler.setFormatter(web_formatter)
+    logger.addHandler(web_handler)
+except ImportError:
+    # We're in standalone mode - use StreamHandler
+    stream_handler = logging.StreamHandler()
+    stream_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    stream_handler.setFormatter(stream_formatter)
+    logger.addHandler(stream_handler)
 
 def get_environment():
     """
