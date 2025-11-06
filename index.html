@@ -248,10 +248,6 @@ import SJPlot
 
 def process_audio_if_ready():
     try:
-        # Debugging: Log the JavaScript variables
-        console.log("js_file0_data:", window.js_file0_data)
-        console.log("js_file1_data:", window.js_file1_data)
-
         # Check if file data is available
         if not hasattr(window, 'js_file0_data') or window.js_file0_data is None:
             console.error("File 0 data is missing. Cannot process audio.")
