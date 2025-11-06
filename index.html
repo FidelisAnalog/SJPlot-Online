@@ -352,6 +352,26 @@ window.pyProcessAudio = process_audio_if_ready
         let file0Data = null, file1Data = null;
         let pyScriptReady = false;
         
+        // LocalStorage helper functions
+        function savePreference(key, value) {
+            try {
+                localStorage.setItem('sjplot_' + key, value);
+                console.log(`Saved ${key}: ${value}`);
+            } catch (e) {
+                console.error('Error saving to localStorage:', e);
+            }
+        }
+        
+        function loadPreference(key, defaultValue = null) {
+            try {
+                const value = localStorage.getItem('sjplot_' + key);
+                return value !== null ? value : defaultValue;
+            } catch (e) {
+                console.error('Error loading from localStorage:', e);
+                return defaultValue;
+            }
+        }
+        
         // Update file input accept attribute based on browser
         document.addEventListener('DOMContentLoaded', function() {
             const fileInput = document.getElementById('fileInput0');
@@ -359,6 +379,59 @@ window.pyProcessAudio = process_audio_if_ready
                 fileInput.accept = supportedFormats.extensions.join(',');
                 console.log(`File input accepts: ${fileInput.accept}`);
             }
+            
+            // Load saved preferences
+            const savedEquipInfo = loadPreference('equipInfo');
+            if (savedEquipInfo) {
+                document.getElementById('equipInfo').value = savedEquipInfo;
+            }
+            
+            const savedTestRecord = loadPreference('testRecord');
+            if (savedTestRecord) {
+                document.getElementById('testRecord').value = savedTestRecord;
+            }
+            
+            const savedRecordingType = loadPreference('recordingType');
+            if (savedRecordingType) {
+                document.getElementById('recordingType').value = savedRecordingType;
+                // Trigger change event to update RIAA settings
+                document.getElementById('recordingType').dispatchEvent(new Event('change'));
+            }
+            
+            const savedPlotStyle = loadPreference('plotStyle');
+            if (savedPlotStyle) {
+                document.getElementById('plotStyle').value = savedPlotStyle;
+            }
+            
+            const savedNormalize = loadPreference('normalize');
+            if (savedNormalize) {
+                document.getElementById('normalize').value = savedNormalize;
+            }
+            
+            console.log('Loaded saved preferences');
+        });
+        
+        // Save preferences when they change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('equipInfo').addEventListener('input', function() {
+                savePreference('equipInfo', this.value);
+            });
+            
+            document.getElementById('testRecord').addEventListener('change', function() {
+                savePreference('testRecord', this.value);
+            });
+            
+            document.getElementById('recordingType').addEventListener('change', function() {
+                savePreference('recordingType', this.value);
+            });
+            
+            document.getElementById('plotStyle').addEventListener('change', function() {
+                savePreference('plotStyle', this.value);
+            });
+            
+            document.getElementById('normalize').addEventListener('change', function() {
+                savePreference('normalize', this.value);
+            });
         });
         
         // Test network connectivity to PyScript CDN
