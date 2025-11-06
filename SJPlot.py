@@ -1217,7 +1217,7 @@ def main():
         plt.figtext(.17, .118, "SJPlot v" + __version__ + "\n" + INPUT_FILE_0 + "\n" + \
             now.strftime("%b %d, %Y %H:%M"), fontsize=6)
     '''
-    
+
     plt.figtext(.125, 0, EQUIP_INFO, alpha=.75, fontsize=8)
 
     if environment == 'web':
@@ -1226,7 +1226,7 @@ def main():
         import base64
 
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=192, bbox_inches='tight', pad_inches=.5)
+        plt.savefig(buf, format='png', dpi=192, pad_inches=.5)
         buf.seek(0)
         img_data = base64.b64encode(buf.read()).decode()
         buf.close()
