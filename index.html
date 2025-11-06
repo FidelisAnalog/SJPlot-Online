@@ -691,7 +691,7 @@ window.pyProcessAudio = process_audio_if_ready
                     
                     if (index === 0) file0Data = {name: file.name, bytes: wavBytes};
                     
-                    let html = `<strong>Ready:</strong> 📄 ${file0Data.name}`;
+                    let html = `✅ ${file0Data.name}`;
                     fileInfoDiv.innerHTML = html;
                     fileInfoDiv.className = 'file-info ready'; // Add ready class for green styling
                     fileInfoDiv.style.display = 'block';
