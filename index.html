@@ -500,8 +500,9 @@ window.pyProcessAudio = process_audio_if_ready
             }
             
             // Hide previous status banner and show loading
-            document.getElementById('status').className = '';
-            document.getElementById('status').style.display = 'none';
+            const statusEl = document.getElementById('status');
+            statusEl.className = '';
+            statusEl.textContent = '';
             document.getElementById('loading').classList.add('active');
             document.getElementById('analyzeBtn').disabled = true;
             
