@@ -214,6 +214,14 @@
             <h3 style="margin-bottom: 20px;">⚙️ Configuration</h3>
             <div class="config-grid">
                 <div class="config-item">
+                    <label>Plot Info</label>
+                    <input type="text" id="plotInfo" placeholder="Cart / Load / Record" />
+                </div>
+                <div class="config-item">
+                    <label>Equipment Info</label>
+                    <input type="text" id="equipInfo" placeholder="Arm -> Phonostage -> ADC" />
+                </div>
+                <div class="config-item">
                     <label>Test Record</label>
                     <select id="testRecord">
                         <option value="STR100" selected>STR 100</option>
@@ -762,6 +770,8 @@ window.pyProcessAudio = process_audio_if_ready
             // Force UI update before starting Python processing
             setTimeout(() => {
                 const config = {
+                    plot_info: document.getElementById('plotInfo').value || "Cart / Load / Record",
+                    equip_info: document.getElementById('equipInfo').value || "Arm -> Phonostage -> ADC",
                     plot_style: parseInt(document.getElementById('plotStyle').value),
                     riaa_mode: parseInt(document.getElementById('riaaMode').value),
                     riaa_inverse: document.getElementById('riaaInverse').checked ? 1 : 0,
