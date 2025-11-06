@@ -643,39 +643,46 @@ window.pyProcessAudio = process_audio_if_ready
             document.getElementById('riaaInverse').checked = settings.inverse;
         }
         
-        // Initialize RIAA settings on page load
-        updateRIAASettings();
-        
-        document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
-        
-        // Handle Test Record dropdown to auto-update RIAA settings
-        document.getElementById('testRecord').addEventListener('change', updateRIAASettings);
-        
-        // Handle Recording Type dropdown to auto-update RIAA settings
-        document.getElementById('recordingType').addEventListener('change', updateRIAASettings);
-        
-        // Drag and drop functionality
-        const uploadArea = document.querySelector('.upload-area');
-        
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('drag-over');
-        });
-        
-        uploadArea.addEventListener('dragleave', (e) => {
-            // Only remove if we're leaving the upload area itself, not a child element
-            if (e.target === uploadArea) {
+        // Initialize UI event listeners when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Setting up file input and drag-and-drop handlers...');
+            
+            // Initialize RIAA settings on page load
+            updateRIAASettings();
+            
+            document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
+            
+            // Handle Test Record dropdown to auto-update RIAA settings
+            document.getElementById('testRecord').addEventListener('change', updateRIAASettings);
+            
+            // Handle Recording Type dropdown to auto-update RIAA settings
+            document.getElementById('recordingType').addEventListener('change', updateRIAASettings);
+            
+            // Drag and drop functionality
+            const uploadArea = document.querySelector('.upload-area');
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('drag-over');
+            });
+            
+            uploadArea.addEventListener('dragleave', (e) => {
+                // Only remove if we're leaving the upload area itself, not a child element
+                if (e.target === uploadArea) {
+                    uploadArea.classList.remove('drag-over');
+                }
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
                 uploadArea.classList.remove('drag-over');
-            }
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('drag-over');
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                handleFile(file, 0);
-            }
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    handleFile(file, 0);
+                }
+            });
+            
+            console.log('File input and drag-and-drop handlers ready!');
         });
         
         // Function to create WAV file from decoded audio data
