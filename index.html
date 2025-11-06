@@ -304,7 +304,7 @@
 
     <py-script>
 import sys
-from js import console, window
+from js import console, window, document
 
 # Import SJPlot module
 import SJPlot
@@ -314,6 +314,11 @@ def process_audio_if_ready():
         # Check if file data is available
         if not hasattr(window, 'js_file0_data') or window.js_file0_data is None:
             console.error("File 0 data is missing. Cannot process audio.")
+            # Update UI to show error
+            document.getElementById('status').textContent = '❌ Error: No file data available'
+            document.getElementById('status').className = 'error'
+            document.getElementById('loading').classList.remove('active')
+            document.getElementById('analyzeBtn').disabled = False
             return
 
         # Call the main function from SJPlot module
@@ -321,7 +326,26 @@ def process_audio_if_ready():
     except Exception as e:
         console.error(f"Error processing audio: {e}")
         import traceback
-        console.error(traceback.format_exc())
+        error_details = traceback.format_exc()
+        console.error(error_details)
+        
+        # Update UI to show error
+        error_msg = str(e) if str(e) else "An unknown error occurred"
+        document.getElementById('status').textContent = f'❌ Error: {error_msg}'
+        document.getElementById('status').className = 'error'
+        document.getElementById('loading').classList.remove('active')
+        document.getElementById('analyzeBtn').disabled = False
+        
+        # Optionally show detailed error in output area
+        document.getElementById('output').innerHTML = f'''
+            <div style="color:red; padding:20px; background:#fee; border-radius:8px; border:2px solid #fcc;">
+                <strong>Error:</strong> {error_msg}<br><br>
+                <details>
+                    <summary style="cursor:pointer; font-weight:bold;">Show Technical Details</summary>
+                    <pre style="margin-top:10px; font-size:0.9em; overflow:auto;">{error_details}</pre>
+                </details>
+            </div>
+        '''
 
 # Attach the function to the window object for manual invocation
 window.pyProcessAudio = process_audio_if_ready
