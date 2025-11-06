@@ -129,9 +129,23 @@
             border-radius: 10px;
             margin-top: 15px;
         }
+        .file-info.converting {
+            background: linear-gradient(90deg, 
+                #fff3e0 0%, 
+                #ffe0b2 25%, 
+                #fff3e0 50%, 
+                #ffe0b2 75%, 
+                #fff3e0 100%);
+            background-size: 300% 100%;
+            animation: backgroundSlide 2s linear infinite;
+        }
         .file-info.ready {
             background: #e8f5e9;
             color: #388e3c;
+        }
+        @keyframes backgroundSlide {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 0%; }
         }
         .progress-bar-container {
             width: 100%;
@@ -668,14 +682,9 @@ window.pyProcessAudio = process_audio_if_ready
                         wavBytes = new Uint8Array(e.target.result);
                         console.log(`Loaded WAV file: ${file.name}`);
                     } else {
-                        // Other format - show conversion progress
-                        fileInfoDiv.className = 'file-info'; // Reset to default styling
-                        fileInfoDiv.innerHTML = `
-                            <strong>Converting:</strong> 📄 ${file.name}
-                            <div class="progress-bar-container">
-                                <div class="progress-bar"></div>
-                            </div>
-                        `;
+                        // Other format - show conversion progress with animated background
+                        fileInfoDiv.className = 'file-info converting';
+                        fileInfoDiv.innerHTML = `<strong>Converting:</strong> 📄 ${file.name}`;
                         fileInfoDiv.style.display = 'block';
                         
                         console.log(`Converting ${file.name} to WAV format...`);
