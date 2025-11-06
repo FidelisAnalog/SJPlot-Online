@@ -1216,9 +1216,9 @@ def main():
     else:
         plt.figtext(.17, .118, "SJPlot v" + __version__ + "\n" + INPUT_FILE_0 + "\n" + \
             now.strftime("%b %d, %Y %H:%M"), fontsize=6)
-
-    plt.figtext(.125, 0, EQUIP_INFO, alpha=.75, fontsize=8)
     '''
+    
+    plt.figtext(.125, 0, EQUIP_INFO, alpha=.75, fontsize=8)
 
     if environment == 'web':
         from js import window
