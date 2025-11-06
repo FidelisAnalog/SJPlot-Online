@@ -176,9 +176,9 @@
         
         <div class="upload-area">
             <h3>📁 Upload Audio File</h3>
-            <input type="file" id="fileInput0" style="display:none" accept=".wav" />
+            <input type="file" id="fileInput0" style="display:none" accept=".wav,.flac" />
             <button class="upload-btn" onclick="document.getElementById('fileInput0').click()">
-                📄 Select WAV File
+                📄 Select WAV or FLAC File
             </button>
             <div id="fileInfo" class="file-info" style="display: none;"></div>
         </div>
@@ -542,20 +542,116 @@ window.pyProcessAudio = process_audio_if_ready
             }
         });
         
+        // Function to create WAV file from decoded audio data
+        function createWavFile(channelData, sampleRate) {
+            const numChannels = channelData.length;
+            const numSamples = channelData[0].length;
+            const bytesPerSample = 2; // 16-bit
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = numSamples * blockAlign;
+            const bufferSize = 44 + dataSize;
+            
+            const buffer = new ArrayBuffer(bufferSize);
+            const view = new DataView(buffer);
+            
+            // Write WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, bufferSize - 8, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true); // fmt chunk size
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true); // bits per sample
+            writeString(36, 'data');
+            view.setUint32(40, dataSize, true);
+            
+            // Write interleaved PCM data (convert Float32 to Int16)
+            let offset = 44;
+            for (let i = 0; i < numSamples; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+                    const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(offset, int16, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Uint8Array(buffer);
+        }
+        
+        // Function to convert FLAC (or other formats) to WAV using Web Audio API
+        async function convertToWav(arrayBuffer, fileName) {
+            try {
+                const audioContext = new AudioContext();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                // Extract channel data
+                const channelData = [];
+                for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                    channelData.push(audioBuffer.getChannelData(i));
+                }
+                
+                console.log(`Decoded ${fileName}: ${audioBuffer.numberOfChannels} channels, ${audioBuffer.sampleRate} Hz, ${audioBuffer.length} samples`);
+                
+                return createWavFile(channelData, audioBuffer.sampleRate);
+            } catch (error) {
+                console.error('Error decoding audio:', error);
+                throw new Error('Failed to decode audio file. The file may be corrupted or in an unsupported format.');
+            }
+        }
+        
         function handleFile(file, index) {
-            if (!file || !file.name.toLowerCase().endsWith('.wav')) {
-                alert('Please select a WAV file');
+            if (!file) {
+                alert('No file selected');
                 return;
             }
+            
+            const fileName = file.name.toLowerCase();
+            const isWav = fileName.endsWith('.wav');
+            const isFlac = fileName.endsWith('.flac');
+            
+            if (!isWav && !isFlac) {
+                alert('Please select a WAV or FLAC file');
+                return;
+            }
+            
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                if (index === 0) file0Data = {name: file.name, bytes: data};
-                
-                let html = `<strong>Ready:</strong> 📄 ${file0Data.name}`;
-                document.getElementById('fileInfo').innerHTML = html;
-                document.getElementById('fileInfo').style.display = 'block';
-                updateAnalyzeButtonState();
+            reader.onload = async function(e) {
+                try {
+                    let wavBytes;
+                    
+                    if (isWav) {
+                        // Direct WAV file - use as is
+                        wavBytes = new Uint8Array(e.target.result);
+                        console.log(`Loaded WAV file: ${file.name}`);
+                    } else {
+                        // FLAC or other format - decode and convert to WAV
+                        console.log(`Converting ${file.name} to WAV format...`);
+                        wavBytes = await convertToWav(e.target.result, file.name);
+                        console.log(`Conversion complete: ${wavBytes.length} bytes`);
+                    }
+                    
+                    if (index === 0) file0Data = {name: file.name, bytes: wavBytes};
+                    
+                    let html = `<strong>Ready:</strong> 📄 ${file0Data.name}`;
+                    document.getElementById('fileInfo').innerHTML = html;
+                    document.getElementById('fileInfo').style.display = 'block';
+                    updateAnalyzeButtonState();
+                } catch (error) {
+                    console.error('File processing error:', error);
+                    alert(error.message || 'Error processing audio file');
+                }
             };
             reader.readAsArrayBuffer(file);
         }
