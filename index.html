@@ -203,7 +203,7 @@
         
         <div class="upload-area">
             <h3>📁 Upload Audio File</h3>
-            <input type="file" id="fileInput0" style="display:none" accept=".wav,.flac,.aiff,.aif,.m4a,.ape" />
+            <input type="file" id="fileInput0" style="display:none" accept="audio/*" />
             <button class="upload-btn" onclick="document.getElementById('fileInput0').click()">
                 📄 Select Lossless Audio File
             </button>
@@ -318,12 +318,42 @@ def process_audio_if_ready():
 # Attach the function to the window object for manual invocation
 window.pyProcessAudio = process_audio_if_ready
 
-
     </py-script>
 
     <script>
+        // Browser detection for audio format support
+        // Safari has different Web Audio API codec support than all other browsers
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        // Define supported formats based on browser
+        // Safari: WAV, AIFF, M4A/ALAC (no FLAC support)
+        // All others (Chrome, Edge, Firefox, Opera, Brave, etc.): WAV, FLAC, M4A/ALAC (no AIFF support)
+        const supportedFormats = isSafari 
+            ? {
+                extensions: ['.wav', '.aiff', '.aif', '.m4a'],
+                names: 'WAV, AIFF, M4A/ALAC',
+                advice: 'FLAC is not natively supported in Safari. Please convert to WAV or AIFF first.'
+              }
+            : {
+                extensions: ['.wav', '.flac', '.m4a'],
+                names: 'WAV, FLAC, M4A/ALAC',
+                advice: 'AIFF is not supported in this browser. Please convert to WAV or FLAC first.'
+              };
+        
+        console.log(`Browser: ${isSafari ? 'Safari' : 'Chromium/Firefox-based'}`);
+        console.log(`Supported formats: ${supportedFormats.names}`);
+        
         let file0Data = null, file1Data = null;
         let pyScriptReady = false;
+        
+        // Update file input accept attribute based on browser
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput0');
+            if (fileInput) {
+                fileInput.accept = supportedFormats.extensions.join(',');
+                console.log(`File input accepts: ${fileInput.accept}`);
+            }
+        });
         
         // Test network connectivity to PyScript CDN
         function testPyScriptCDN() {
@@ -634,7 +664,7 @@ window.pyProcessAudio = process_audio_if_ready
                 return createWavFile(channelData, audioBuffer.sampleRate);
             } catch (error) {
                 console.error('Error decoding audio:', error);
-                throw new Error('Failed to decode audio file. The file may be corrupted or in an unsupported format.');
+                throw new Error(`Failed to decode audio file. ${supportedFormats.advice}`);
             }
         }
         
@@ -647,13 +677,11 @@ window.pyProcessAudio = process_audio_if_ready
             const fileName = file.name.toLowerCase();
             const isWav = fileName.endsWith('.wav');
             
-            // Check if it's a lossless audio file
-            const losslessExtensions = ['.wav', '.flac', '.aiff', '.aif', '.ape'];
-            const isM4a = fileName.endsWith('.m4a'); // Could be ALAC (lossless) or AAC (lossy)
-            const isLossless = losslessExtensions.some(ext => fileName.endsWith(ext)) || isM4a;
+            // Check if file extension is supported by current browser
+            const isSupported = supportedFormats.extensions.some(ext => fileName.endsWith(ext));
             
-            if (!isLossless) {
-                alert('Please select a lossless audio file (WAV, FLAC, AIFF, M4A/ALAC)');
+            if (!isSupported) {
+                alert(`Please select a supported lossless audio file (${supportedFormats.names})\n\n${supportedFormats.advice}`);
                 return;
             }
             
