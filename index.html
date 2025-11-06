@@ -176,9 +176,9 @@
         
         <div class="upload-area">
             <h3>📁 Upload Audio File</h3>
-            <input type="file" id="fileInput0" style="display:none" accept=".wav,.flac" />
+            <input type="file" id="fileInput0" style="display:none" accept="audio/*,.wav,.flac,.mp3,.m4a,.aac,.ogg,.opus" />
             <button class="upload-btn" onclick="document.getElementById('fileInput0').click()">
-                📄 Select WAV or FLAC File
+                📄 Select Audio File
             </button>
             <div id="fileInfo" class="file-info" style="display: none;"></div>
         </div>
@@ -619,10 +619,13 @@ window.pyProcessAudio = process_audio_if_ready
             
             const fileName = file.name.toLowerCase();
             const isWav = fileName.endsWith('.wav');
-            const isFlac = fileName.endsWith('.flac');
             
-            if (!isWav && !isFlac) {
-                alert('Please select a WAV or FLAC file');
+            // Check if it's an audio file (basic check)
+            const audioExtensions = ['.wav', '.flac', '.mp3', '.m4a', '.aac', '.ogg', '.opus', '.wma', '.aiff', '.ape'];
+            const isAudioFile = audioExtensions.some(ext => fileName.endsWith(ext)) || file.type.startsWith('audio/');
+            
+            if (!isAudioFile) {
+                alert('Please select an audio file (WAV, FLAC, MP3, M4A, AAC, OGG, etc.)');
                 return;
             }
             
@@ -636,7 +639,7 @@ window.pyProcessAudio = process_audio_if_ready
                         wavBytes = new Uint8Array(e.target.result);
                         console.log(`Loaded WAV file: ${file.name}`);
                     } else {
-                        // FLAC or other format - decode and convert to WAV
+                        // Other format - decode and convert to WAV
                         console.log(`Converting ${file.name} to WAV format...`);
                         wavBytes = await convertToWav(e.target.result, file.name);
                         console.log(`Conversion complete: ${wavBytes.length} bytes`);
