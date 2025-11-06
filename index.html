@@ -431,6 +431,7 @@ window.pyProcessAudio = process_audio_if_ready
             document.getElementById('output').innerHTML = html;
             document.getElementById('status').textContent = '✅ Complete!';
             document.getElementById('status').className = 'success';
+            document.getElementById('status').style.display = 'block';
             document.getElementById('loading').classList.remove('active');
             updateAnalyzeButtonState();
         }
@@ -439,6 +440,7 @@ window.pyProcessAudio = process_audio_if_ready
             document.getElementById('output').innerHTML = `<div style="color:red; padding:20px;"><strong>Error:</strong> ${errorMessage}</div>`;
             document.getElementById('status').textContent = '❌ Error';
             document.getElementById('status').className = 'error';
+            document.getElementById('status').style.display = 'block';
             document.getElementById('loading').classList.remove('active');
             updateAnalyzeButtonState();
         }
