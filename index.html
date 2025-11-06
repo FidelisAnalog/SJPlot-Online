@@ -24,6 +24,19 @@
         }
         h1 { color: #333; margin-bottom: 10px; font-size: 2.5em; }
         .subtitle { color: #666; margin-bottom: 30px; font-size: 1.1em; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header-left {
+            flex: 1;
+        }
+        .header-logo {
+            height: 60px;
+            width: auto;
+        }
         .upload-area {
             border: 3px dashed #667eea;
             border-radius: 15px;
@@ -141,8 +154,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎵 SJPlot Online</h1>
-        <p class="subtitle">Phono Cartridge Frequency Response Analysis</p>
+        <div class="header">
+            <div class="header-left">
+                <h1>SJPlot Online</h1>
+                <p class="subtitle">Phono Cartridge Frequency Response Analysis</p>
+            </div>
+            <img src="images/myhifi_lockup.svg" alt="MyHiFi" class="header-logo">
+        </div>
         
         <div class="upload-area">
             <h3>📁 Upload Audio File</h3>
