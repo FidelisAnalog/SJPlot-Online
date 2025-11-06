@@ -203,9 +203,9 @@
         
         <div class="upload-area">
             <h3>📁 Upload Audio File</h3>
-            <input type="file" id="fileInput0" style="display:none" accept="audio/*" />
+            <input type="file" id="fileInput0" style="display:none" accept=".wav" />
             <button class="upload-btn" onclick="document.getElementById('fileInput0').click()">
-                📄 Select Lossless Audio File
+                📄 Select WAV File
             </button>
             <div id="fileInfo" class="file-info" style="display: none;"></div>
         </div>
@@ -335,26 +335,6 @@ window.pyProcessAudio = process_audio_if_ready
     </py-script>
 
     <script>
-        // Browser detection for audio format support
-        // Safari is the only browser that supports AIFF via Web Audio API
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        // Define supported formats based on browser
-        const supportedFormats = isSafari 
-            ? {
-                extensions: ['.wav', '.flac', '.aiff', '.aif', '.m4a'],
-                names: 'WAV, FLAC, AIFF, M4A/ALAC',
-                advice: 'Please use a lossless audio format.'
-              }
-            : {
-                extensions: ['.wav', '.flac', '.m4a'],
-                names: 'WAV, FLAC, M4A/ALAC',
-                advice: 'AIFF is not supported in this browser. Please convert to WAV or FLAC first.'
-              };
-        
-        console.log(`Browser: ${isSafari ? 'Safari' : 'Other'}`);
-        console.log(`Supported formats: ${supportedFormats.names}`);
-        
         let file0Data = null, file1Data = null;
         let pyScriptReady = false;
         
@@ -382,8 +362,8 @@ window.pyProcessAudio = process_audio_if_ready
         document.addEventListener('DOMContentLoaded', function() {
             const fileInput = document.getElementById('fileInput0');
             if (fileInput) {
-                fileInput.accept = supportedFormats.extensions.join(',');
-                console.log(`File input accepts: ${fileInput.accept}`);
+                fileInput.accept = '.wav';
+                console.log('File input accepts: .wav only');
             }
             
             // Load saved preferences
@@ -726,75 +706,6 @@ window.pyProcessAudio = process_audio_if_ready
             console.log('File input and drag-and-drop handlers ready!');
         });
         
-        // Function to create WAV file from decoded audio data
-        function createWavFile(channelData, sampleRate) {
-            const numChannels = channelData.length;
-            const numSamples = channelData[0].length;
-            const bytesPerSample = 2; // 16-bit
-            const blockAlign = numChannels * bytesPerSample;
-            const byteRate = sampleRate * blockAlign;
-            const dataSize = numSamples * blockAlign;
-            const bufferSize = 44 + dataSize;
-            
-            const buffer = new ArrayBuffer(bufferSize);
-            const view = new DataView(buffer);
-            
-            // Write WAV header
-            const writeString = (offset, string) => {
-                for (let i = 0; i < string.length; i++) {
-                    view.setUint8(offset + i, string.charCodeAt(i));
-                }
-            };
-            
-            writeString(0, 'RIFF');
-            view.setUint32(4, bufferSize - 8, true);
-            writeString(8, 'WAVE');
-            writeString(12, 'fmt ');
-            view.setUint32(16, 16, true); // fmt chunk size
-            view.setUint16(20, 1, true); // PCM format
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, byteRate, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, 16, true); // bits per sample
-            writeString(36, 'data');
-            view.setUint32(40, dataSize, true);
-            
-            // Write interleaved PCM data (convert Float32 to Int16)
-            let offset = 44;
-            for (let i = 0; i < numSamples; i++) {
-                for (let channel = 0; channel < numChannels; channel++) {
-                    const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
-                    const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                    view.setInt16(offset, int16, true);
-                    offset += 2;
-                }
-            }
-            
-            return new Uint8Array(buffer);
-        }
-        
-        // Function to convert FLAC (or other formats) to WAV using Web Audio API
-        async function convertToWav(arrayBuffer, fileName) {
-            try {
-                const audioContext = new AudioContext();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                // Extract channel data
-                const channelData = [];
-                for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
-                    channelData.push(audioBuffer.getChannelData(i));
-                }
-                
-                console.log(`Decoded ${fileName}: ${audioBuffer.numberOfChannels} channels, ${audioBuffer.sampleRate} Hz, ${audioBuffer.length} samples`);
-                
-                return createWavFile(channelData, audioBuffer.sampleRate);
-            } catch (error) {
-                console.error('Error decoding audio:', error);
-                throw new Error(`Failed to decode audio file. ${supportedFormats.advice}`);
-            }
-        }
-        
         function handleFile(file, index) {
             if (!file) {
                 alert('No file selected');
@@ -802,62 +713,31 @@ window.pyProcessAudio = process_audio_if_ready
             }
             
             const fileName = file.name.toLowerCase();
-            const isWav = fileName.endsWith('.wav');
             
-            // Check if file extension is supported by current browser
-            const isSupported = supportedFormats.extensions.some(ext => fileName.endsWith(ext));
-            
-            if (!isSupported) {
-                alert(`Please select a supported lossless audio file (${supportedFormats.names})\n\n${supportedFormats.advice}`);
+            // Only accept WAV files
+            if (!fileName.endsWith('.wav')) {
+                alert('Only WAV files are supported.\n\nFor measurement accuracy, this tool requires uncompressed WAV audio files.');
                 return;
             }
             
-            // Hide file info and show conversion progress if needed
-            document.getElementById('fileInfo').style.display = 'none';
-            
             const reader = new FileReader();
-            reader.onload = async function(e) {
+            reader.onload = function(e) {
                 const fileInfoDiv = document.getElementById('fileInfo');
                 try {
-                    let wavBytes;
-                    
-                    if (isWav) {
-                        // Direct WAV file - use as is
-                        wavBytes = new Uint8Array(e.target.result);
-                        console.log(`Loaded WAV file: ${file.name}`);
-                    } else {
-                        // Other format - show conversion progress with purple bar
-                        fileInfoDiv.className = 'file-info';
-                        fileInfoDiv.innerHTML = `
-                            <strong>Converting:</strong> 📄 ${file.name}
-                            <div class="progress-bar-container">
-                                <div class="progress-bar"></div>
-                            </div>
-                        `;
-                        fileInfoDiv.style.display = 'block';
-                        
-                        console.log(`Converting ${file.name} to WAV format...`);
-                        
-                        // Small delay to ensure UI updates
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                        
-                        wavBytes = await convertToWav(e.target.result, file.name);
-                        
-                        console.log(`Conversion complete: ${wavBytes.length} bytes`);
-                    }
+                    // Direct WAV file - use as is
+                    const wavBytes = new Uint8Array(e.target.result);
+                    console.log(`Loaded WAV file: ${file.name} (${wavBytes.length} bytes)`);
                     
                     if (index === 0) file0Data = {name: file.name, bytes: wavBytes};
                     
-                    let html = `✅ ${file0Data.name}`;
-                    fileInfoDiv.innerHTML = html;
+                    fileInfoDiv.innerHTML = `✅ ${file0Data.name}`;
                     fileInfoDiv.className = 'file-info ready';
                     fileInfoDiv.style.display = 'block';
                     updateAnalyzeButtonState();
                 } catch (error) {
-                    // Hide progress on error
                     fileInfoDiv.style.display = 'none';
                     console.error('File processing error:', error);
-                    alert(error.message || 'Error processing audio file');
+                    alert(error.message || 'Error processing WAV file');
                 }
             };
             reader.readAsArrayBuffer(file);
