@@ -130,6 +130,11 @@
             margin-top: 15px;
             border-left: 4px solid #ff9800;
         }
+        .file-info.ready {
+            background: #e8f5e9;
+            border-left: 4px solid #388e3c;
+            color: #388e3c;
+        }
         .progress-bar-container {
             width: 100%;
             height: 8px;
@@ -665,6 +670,7 @@ window.pyProcessAudio = process_audio_if_ready
                         console.log(`Loaded WAV file: ${file.name}`);
                     } else {
                         // Other format - show conversion progress
+                        fileInfoDiv.className = 'file-info'; // Reset to default styling
                         fileInfoDiv.innerHTML = `
                             <strong>Converting:</strong> 📄 ${file.name}
                             <div class="progress-bar-container">
@@ -687,6 +693,7 @@ window.pyProcessAudio = process_audio_if_ready
                     
                     let html = `<strong>Ready:</strong> 📄 ${file0Data.name}`;
                     fileInfoDiv.innerHTML = html;
+                    fileInfoDiv.className = 'file-info ready'; // Add ready class for green styling
                     fileInfoDiv.style.display = 'block';
                     updateAnalyzeButtonState();
                 } catch (error) {
