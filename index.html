@@ -131,23 +131,22 @@
             transition: background 0.3s ease;
         }
         .file-info.converting {
-            background: linear-gradient(90deg, 
-                #fff3e0 0%, 
-                #ffe0b2 25%, 
-                #fff3e0 50%, 
-                #ffe0b2 75%, 
-                #fff3e0 100%);
-            background-size: 400% 100%;
-            background-position: 0% 0%;
-            animation: backgroundSlide 3s linear infinite;
+            background: repeating-linear-gradient(
+                90deg,
+                #fff3e0 0px,
+                #ffe0b2 50px,
+                #fff3e0 100px
+            );
+            background-size: 200px 100%;
+            animation: stripeSlide 0.8s linear infinite;
         }
         .file-info.ready {
             background: #e8f5e9;
             color: #388e3c;
         }
-        @keyframes backgroundSlide {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
+        @keyframes stripeSlide {
+            0% { background-position: 0px 0; }
+            100% { background-position: 200px 0; }
         }
         .progress-bar-container {
             width: 100%;
