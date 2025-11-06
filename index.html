@@ -613,9 +613,15 @@ window.pyProcessAudio = process_audio_if_ready
             if (traceback) {
                 statusHtml += `
                     <br><br>
-                    <details style="margin-top:10px;">
-                        <summary style="cursor:pointer; font-weight:bold; color:#c00;">Show Technical Details</summary>
-                        <pre style="margin-top:10px; font-size:0.85em; overflow:auto; background:#fff; padding:10px; border-radius:4px; border:1px solid #ddd; color:#333;">${traceback}</pre>
+                    <details style="margin-top:10px; text-align:center;">
+                        <summary style="cursor:pointer; font-weight:bold; color:#c00; display:inline-block;">Show Technical Details</summary>
+                        <div style="position:relative; text-align:left; margin-top:10px;">
+                            <button onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent); this.textContent='✓ Copied!'; setTimeout(()=>this.textContent='📋 Copy', 2000);" 
+                                    style="position:absolute; top:5px; right:5px; padding:5px 10px; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.85em;">
+                                📋 Copy
+                            </button>
+                            <pre style="margin:0; padding:10px 10px 10px 10px; font-size:0.85em; overflow:auto; background:#fff; border-radius:4px; border:1px solid #ddd; color:#333; text-align:left;">${traceback}</pre>
+                        </div>
                     </details>
                 `;
             }
