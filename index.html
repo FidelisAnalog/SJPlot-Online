@@ -603,26 +603,24 @@ window.pyProcessAudio = process_audio_if_ready
         }
         
         function updateUIWithError(errorMessage, traceback = null) {
-            let errorHtml = `
-                <div style="color:red; padding:20px; background:#fee; border-radius:8px; border:2px solid #fcc;">
-                    <strong>Error:</strong> ${errorMessage}
-            `;
+            // Clear the output div
+            document.getElementById('output').innerHTML = '';
+            
+            // Build status message with optional traceback
+            const statusEl = document.getElementById('status');
+            let statusHtml = `❌ ${errorMessage}`;
             
             if (traceback) {
-                errorHtml += `
+                statusHtml += `
                     <br><br>
-                    <details>
-                        <summary style="cursor:pointer; font-weight:bold;">Show Technical Details</summary>
-                        <pre style="margin-top:10px; font-size:0.9em; overflow:auto; background:#fff; padding:10px; border-radius:4px;">${traceback}</pre>
+                    <details style="margin-top:10px;">
+                        <summary style="cursor:pointer; font-weight:bold; color:#c00;">Show Technical Details</summary>
+                        <pre style="margin-top:10px; font-size:0.85em; overflow:auto; background:#fff; padding:10px; border-radius:4px; border:1px solid #ddd; color:#333;">${traceback}</pre>
                     </details>
                 `;
             }
             
-            errorHtml += `</div>`;
-            
-            document.getElementById('output').innerHTML = errorHtml;
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = '❌ Error';
+            statusEl.innerHTML = statusHtml;
             statusEl.className = 'error';
             document.getElementById('loading').classList.remove('active');
             updateAnalyzeButtonState();
