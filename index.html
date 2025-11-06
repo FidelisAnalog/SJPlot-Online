@@ -322,17 +322,15 @@ window.pyProcessAudio = process_audio_if_ready
 
     <script>
         // Browser detection for audio format support
-        // Safari has different Web Audio API codec support than all other browsers
+        // Safari is the only browser that supports AIFF via Web Audio API
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         
         // Define supported formats based on browser
-        // Safari: WAV, AIFF, M4A/ALAC (no FLAC support)
-        // All others (Chrome, Edge, Firefox, Opera, Brave, etc.): WAV, FLAC, M4A/ALAC (no AIFF support)
         const supportedFormats = isSafari 
             ? {
-                extensions: ['.wav', '.aiff', '.aif', '.m4a'],
-                names: 'WAV, AIFF, M4A/ALAC',
-                advice: 'FLAC is not natively supported in Safari. Please convert to WAV or AIFF first.'
+                extensions: ['.wav', '.flac', '.aiff', '.aif', '.m4a'],
+                names: 'WAV, FLAC, AIFF, M4A/ALAC',
+                advice: 'Please use a lossless audio format.'
               }
             : {
                 extensions: ['.wav', '.flac', '.m4a'],
@@ -340,7 +338,7 @@ window.pyProcessAudio = process_audio_if_ready
                 advice: 'AIFF is not supported in this browser. Please convert to WAV or FLAC first.'
               };
         
-        console.log(`Browser: ${isSafari ? 'Safari' : 'Chromium/Firefox-based'}`);
+        console.log(`Browser: ${isSafari ? 'Safari' : 'Other'}`);
         console.log(`Supported formats: ${supportedFormats.names}`);
         
         let file0Data = null, file1Data = null;
