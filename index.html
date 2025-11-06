@@ -429,18 +429,18 @@ window.pyProcessAudio = process_audio_if_ready
         // Callback functions for Python to update UI
         function updateUIWithResults(html) {
             document.getElementById('output').innerHTML = html;
-            document.getElementById('status').textContent = '✅ Complete!';
-            document.getElementById('status').className = 'success';
-            document.getElementById('status').style.display = 'block';
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = '✅ Complete!';
+            statusEl.className = 'success';
             document.getElementById('loading').classList.remove('active');
             updateAnalyzeButtonState();
         }
         
         function updateUIWithError(errorMessage) {
             document.getElementById('output').innerHTML = `<div style="color:red; padding:20px;"><strong>Error:</strong> ${errorMessage}</div>`;
-            document.getElementById('status').textContent = '❌ Error';
-            document.getElementById('status').className = 'error';
-            document.getElementById('status').style.display = 'block';
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = '❌ Error';
+            statusEl.className = 'error';
             document.getElementById('loading').classList.remove('active');
             updateAnalyzeButtonState();
         }
@@ -504,7 +504,6 @@ window.pyProcessAudio = process_audio_if_ready
             
             // Clear previous output
             document.getElementById('output').innerHTML = '';
-            document.getElementById('status').style.display = 'none';
             
             // Force UI update before starting Python processing
             setTimeout(() => {
