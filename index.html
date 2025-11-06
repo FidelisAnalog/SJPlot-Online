@@ -130,6 +130,25 @@
             margin-top: 15px;
             border-left: 4px solid #ff9800;
         }
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background-color: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+            background-size: 200% 100%;
+            animation: progressSlide 1.5s ease-in-out infinite;
+        }
+        @keyframes progressSlide {
+            0% { background-position: 0% 0%; }
+            50% { background-position: 100% 0%; }
+            100% { background-position: 0% 0%; }
+        }
         .loading { display: none; text-align: center; padding: 20px; }
         .loading.active { display: block; }
         .spinner {
@@ -629,8 +648,12 @@ window.pyProcessAudio = process_audio_if_ready
                 return;
             }
             
+            // Hide file info and show conversion progress if needed
+            document.getElementById('fileInfo').style.display = 'none';
+            
             const reader = new FileReader();
             reader.onload = async function(e) {
+                const fileInfoDiv = document.getElementById('fileInfo');
                 try {
                     let wavBytes;
                     
@@ -639,19 +662,34 @@ window.pyProcessAudio = process_audio_if_ready
                         wavBytes = new Uint8Array(e.target.result);
                         console.log(`Loaded WAV file: ${file.name}`);
                     } else {
-                        // Other format - decode and convert to WAV
+                        // Other format - show conversion progress
+                        fileInfoDiv.innerHTML = `
+                            <strong>Converting:</strong> 📄 ${file.name}
+                            <div class="progress-bar-container">
+                                <div class="progress-bar"></div>
+                            </div>
+                        `;
+                        fileInfoDiv.style.display = 'block';
+                        
                         console.log(`Converting ${file.name} to WAV format...`);
+                        
+                        // Small delay to ensure UI updates
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        
                         wavBytes = await convertToWav(e.target.result, file.name);
+                        
                         console.log(`Conversion complete: ${wavBytes.length} bytes`);
                     }
                     
                     if (index === 0) file0Data = {name: file.name, bytes: wavBytes};
                     
                     let html = `<strong>Ready:</strong> 📄 ${file0Data.name}`;
-                    document.getElementById('fileInfo').innerHTML = html;
-                    document.getElementById('fileInfo').style.display = 'block';
+                    fileInfoDiv.innerHTML = html;
+                    fileInfoDiv.style.display = 'block';
                     updateAnalyzeButtonState();
                 } catch (error) {
+                    // Hide progress on error
+                    fileInfoDiv.style.display = 'none';
                     console.error('File processing error:', error);
                     alert(error.message || 'Error processing audio file');
                 }
