@@ -132,22 +132,28 @@
         }
         .progress-bar-container {
             width: 100%;
-            height: 6px;
+            height: 8px;
             background-color: #e0e0e0;
-            border-radius: 3px;
+            border-radius: 4px;
             overflow: hidden;
             margin-top: 10px;
+            position: relative;
         }
         .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
-            background-size: 200% 100%;
-            animation: progressSlide 1.5s ease-in-out infinite;
+            width: 100%;
+            background: linear-gradient(90deg, 
+                #667eea 0%, 
+                #764ba2 25%, 
+                #667eea 50%, 
+                #764ba2 75%, 
+                #667eea 100%);
+            background-size: 300% 100%;
+            animation: progressSlide 2s linear infinite;
         }
         @keyframes progressSlide {
             0% { background-position: 0% 0%; }
-            50% { background-position: 100% 0%; }
-            100% { background-position: 0% 0%; }
+            100% { background-position: 100% 0%; }
         }
         .loading { display: none; text-align: center; padding: 20px; }
         .loading.active { display: block; }
