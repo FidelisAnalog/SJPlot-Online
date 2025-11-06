@@ -614,11 +614,15 @@ window.pyProcessAudio = process_audio_if_ready
                 statusHtml += `
                     <br><br>
                     <details style="margin-top:10px; text-align:center;">
-                        <summary style="cursor:pointer; font-weight:bold; color:#c00; display:inline-block;">Show Technical Details</summary>
+                        <summary style="cursor:pointer; font-weight:bold; color:#c00; list-style:revert;">Show Technical Details</summary>
                         <div style="position:relative; text-align:left; margin-top:10px;">
-                            <button onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent); this.textContent='✓ Copied!'; setTimeout(()=>this.textContent='📋 Copy', 2000);" 
-                                    style="position:absolute; top:5px; right:5px; padding:5px 10px; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.85em;">
-                                📋 Copy
+                            <button onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent); this.innerHTML='✓'; setTimeout(()=>this.innerHTML='<svg width=16 height=16 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\'><rect x=\'9\' y=\'9\' width=\'13\' height=\'13\' rx=\'2\'/><path d=\'M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1\'/></svg>', 2000);" 
+                                    style="position:absolute; top:5px; right:5px; padding:6px 10px; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.85em; display:flex; align-items:center;" 
+                                    title="Copy to clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                                </svg>
                             </button>
                             <pre style="margin:0; padding:10px 10px 10px 10px; font-size:0.85em; overflow:auto; background:#fff; border-radius:4px; border:1px solid #ddd; color:#333; text-align:left;">${traceback}</pre>
                         </div>
