@@ -200,9 +200,9 @@
         
         <div class="upload-area">
             <h3>📁 Upload Audio File</h3>
-            <input type="file" id="fileInput0" style="display:none" accept="audio/*,.wav,.flac,.mp3,.m4a,.aac,.ogg,.opus" />
+            <input type="file" id="fileInput0" style="display:none" accept=".wav,.flac,.aiff,.aif,.m4a,.ape" />
             <button class="upload-btn" onclick="document.getElementById('fileInput0').click()">
-                📄 Select Audio File
+                📄 Select Lossless Audio File
             </button>
             <div id="fileInfo" class="file-info" style="display: none;"></div>
         </div>
@@ -644,12 +644,13 @@ window.pyProcessAudio = process_audio_if_ready
             const fileName = file.name.toLowerCase();
             const isWav = fileName.endsWith('.wav');
             
-            // Check if it's an audio file (basic check)
-            const audioExtensions = ['.wav', '.flac', '.mp3', '.m4a', '.aac', '.ogg', '.opus', '.wma', '.aiff', '.ape'];
-            const isAudioFile = audioExtensions.some(ext => fileName.endsWith(ext)) || file.type.startsWith('audio/');
+            // Check if it's a lossless audio file
+            const losslessExtensions = ['.wav', '.flac', '.aiff', '.aif', '.ape'];
+            const isM4a = fileName.endsWith('.m4a'); // Could be ALAC (lossless) or AAC (lossy)
+            const isLossless = losslessExtensions.some(ext => fileName.endsWith(ext)) || isM4a;
             
-            if (!isAudioFile) {
-                alert('Please select an audio file (WAV, FLAC, MP3, M4A, AAC, OGG, etc.)');
+            if (!isLossless) {
+                alert('Please select a lossless audio file (WAV, FLAC, AIFF, M4A/ALAC)');
                 return;
             }
             
