@@ -683,9 +683,8 @@ window.pyProcessAudio = process_audio_if_ready
                         wavBytes = new Uint8Array(e.target.result);
                         console.log(`Loaded WAV file: ${file.name}`);
                     } else {
-                        // Other format - show conversion progress with animated background
-                        fileInfoDiv.className = 'file-info converting';
-                        fileInfoDiv.innerHTML = `<strong>Converting:</strong> 📄 ${file.name}`;
+                        // Other format - show conversion progress with animated background in child element
+                        fileInfoDiv.innerHTML = `<div class="file-info converting"><strong>Converting:</strong> 📄 ${file.name}</div>`;
                         fileInfoDiv.style.display = 'block';
                         
                         console.log(`Converting ${file.name} to WAV format...`);
@@ -700,9 +699,8 @@ window.pyProcessAudio = process_audio_if_ready
                     
                     if (index === 0) file0Data = {name: file.name, bytes: wavBytes};
                     
-                    let html = `✅ ${file0Data.name}`;
+                    let html = `<div class="file-info ready">✅ ${file0Data.name}</div>`;
                     fileInfoDiv.innerHTML = html;
-                    fileInfoDiv.className = 'file-info ready'; // Add ready class for green styling
                     fileInfoDiv.style.display = 'block';
                     updateAnalyzeButtonState();
                 } catch (error) {
