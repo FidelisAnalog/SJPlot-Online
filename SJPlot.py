@@ -66,6 +66,9 @@ class WebStatusHandler(logging.Handler):
                     window.updateProgressStatus(status_text)
             except Exception as inner_e:
                 console.error(f"Error calling updateProgressStatus: {inner_e}")
+                
+            # Log message to console
+            console.log(msg)
         except Exception as e:
             if _IS_WEB_ENV:
                 console.error(f"WebStatusHandler error: {e}")
