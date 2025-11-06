@@ -201,10 +201,6 @@
                     <input type="checkbox" id="riaaInverse" checked />
                     <label>Inverse RIAA</label>
                 </div>
-                <div class="config-item checkbox-item">
-                    <input type="checkbox" id="file0norm" />
-                    <label>Normalize to File 0</label>
-                </div>
             </div>
         </div>
         
@@ -513,8 +509,7 @@ window.pyProcessAudio = process_audio_if_ready
                     riaa_inverse: document.getElementById('riaaInverse').checked ? 1 : 0,
                     normalize: parseInt(document.getElementById('normalize').value),
                     extract_sweeps: 1, // Always enabled
-                    test_record: document.getElementById('testRecord').value,
-                    file0norm: document.getElementById('file0norm').checked ? 1 : 0
+                    test_record: document.getElementById('testRecord').value
                 };
                 
                 try {
