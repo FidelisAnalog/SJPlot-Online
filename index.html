@@ -453,9 +453,6 @@ window.pyProcessAudio = process_audio_if_ready
             const element = document.getElementById('progressStatus');
             if (element) {
                 element.innerHTML = statusText;
-                console.log('Main thread: Progress status updated to:', statusText);
-            } else {
-                console.error('Main thread: progressStatus element not found');
             }
         };
         

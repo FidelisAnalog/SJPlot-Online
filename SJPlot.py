@@ -64,14 +64,8 @@ class WebStatusHandler(logging.Handler):
                 from js import window
                 if hasattr(window, 'updateProgressStatus'):
                     window.updateProgressStatus(status_text)
-                    console.log(f"✓ Status sent to main thread: '{status_text}'")
-                else:
-                    console.log("✗ updateProgressStatus function not found on window")
             except Exception as inner_e:
                 console.error(f"Error calling updateProgressStatus: {inner_e}")
-                
-            # Also log full message to console for debugging
-            console.log(msg)
         except Exception as e:
             if _IS_WEB_ENV:
                 console.error(f"WebStatusHandler error: {e}")
@@ -91,7 +85,6 @@ if _IS_WEB_ENV:
     web_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     web_handler.setFormatter(web_formatter)
     logger.addHandler(web_handler)
-    console.log("WebStatusHandler added to logger")
 else:
     # We're in standalone mode - use StreamHandler
     stream_handler = logging.StreamHandler()
