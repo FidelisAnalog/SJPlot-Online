@@ -89,6 +89,10 @@
         }
         .checkbox-item { display: flex; align-items: center; gap: 10px; }
         .checkbox-item input[type="checkbox"] { width: 20px; height: 20px; }
+        .checkbox-item input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
         .analyze-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -187,12 +191,12 @@
                     </select>
                 </div>
                 <div class="config-item">
-                    <label>RIAA Mode</label>
-                    <select id="riaaMode">
+                    <label>RIAA Mode (Auto)</label>
+                    <select id="riaaMode" disabled>
                         <option value="0">None</option>
                         <option value="1">Bass Only</option>
-                        <option value="2" selected>Treble Only</option>
-                        <option value="3">Both</option>
+                        <option value="2">Treble Only</option>
+                        <option value="3" selected>Both</option>
                     </select>
                 </div>
                 <div class="config-item">
@@ -207,19 +211,24 @@
                         <option value="TRS1005">TRS-1005</option>
                         <option value="STR120">STR 120</option>
                         <option value="STR130">STR 130</option>
-                        <option value="STR170">STR 170</option>
                         <option value="QR2009">QR 2009</option>
                         <option value="QR2010">QR 2010</option>
                         <option value="XG7001">XG-7001</option>
                         <option value="XG7002">XG-7002</option>
                         <option value="XG7005">XG-7005</option>
                         <option value="DIN45543">DIN 45543</option>
-                        <option value="ИЗМ33С0327">ИЗМ33С0327</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>Recording Type</label>
+                    <select id="recordingType">
+                        <option value="withRIAA" selected>With RIAA</option>
+                        <option value="withoutRIAA">Without RIAA</option>
                     </select>
                 </div>
                 <div class="config-item checkbox-item">
-                    <input type="checkbox" id="riaaInverse" checked />
-                    <label>Inverse RIAA</label>
+                    <input type="checkbox" id="riaaInverse" checked disabled />
+                    <label>Inverse RIAA (Auto)</label>
                 </div>
             </div>
         </div>
@@ -467,13 +476,41 @@ window.pyProcessAudio = process_audio_if_ready
             }
         };
         
+        // Test Record RIAA Settings Mapping
+        const testRecordRIAASettings = {
+            'STR100':    { withRIAA: {mode: 3, inverse: true},  withoutRIAA: {mode: 0, inverse: false} },
+            'TRS1007':   { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 1, inverse: false} },
+            'TRS1005':   { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 1, inverse: false} },
+            'STR120':    { withRIAA: {mode: 3, inverse: true},  withoutRIAA: {mode: 0, inverse: false} },
+            'STR130':    { withRIAA: {mode: 0, inverse: false}, withoutRIAA: {mode: 3, inverse: false} },
+            'QR2009':    { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 1, inverse: false} },
+            'QR2010':    { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 1, inverse: false} },
+            'XG7001':    { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 0, inverse: false} },
+            'XG7002':    { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 0, inverse: false} },
+            'XG7005':    { withRIAA: {mode: 0, inverse: false}, withoutRIAA: {mode: 3, inverse: false} },
+            'DIN45543':  { withRIAA: {mode: 2, inverse: true},  withoutRIAA: {mode: 1, inverse: false} }
+        };
+        
+        // Function to update RIAA settings based on test record and recording type
+        function updateRIAASettings() {
+            const testRecord = document.getElementById('testRecord').value;
+            const recordingType = document.getElementById('recordingType').value;
+            const settings = testRecordRIAASettings[testRecord][recordingType];
+            
+            document.getElementById('riaaMode').value = settings.mode;
+            document.getElementById('riaaInverse').checked = settings.inverse;
+        }
+        
+        // Initialize RIAA settings on page load
+        updateRIAASettings();
+        
         document.getElementById('fileInput0').addEventListener('change', e => handleFile(e.target.files[0], 0));
         
-        // Handle Test Record dropdown to auto-enable when selection is made
-        document.getElementById('testRecord').addEventListener('change', function(e) {
-            // Test Record selection is always available
-            // Extract sweeps will be enabled automatically when test record is selected
-        });
+        // Handle Test Record dropdown to auto-update RIAA settings
+        document.getElementById('testRecord').addEventListener('change', updateRIAASettings);
+        
+        // Handle Recording Type dropdown to auto-update RIAA settings
+        document.getElementById('recordingType').addEventListener('change', updateRIAASettings);
         
         function handleFile(file, index) {
             if (!file || !file.name.toLowerCase().endsWith('.wav')) {

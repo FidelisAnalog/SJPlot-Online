@@ -223,6 +223,10 @@ def get_config():
     if combined_config["test_record"].casefold() == "str100".casefold():
         combined_config["str100"] = 1
 
+    # Automatically set xg7001 to 1 if test_record = xg7001 is provided
+    if combined_config["test_record"].casefold() == "xg7001".casefold():
+        combined_config["xg7001"] = 1
+
 
     return combined_config
 
