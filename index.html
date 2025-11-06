@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="./mini-coi.js" scope="."></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SJPlot Online</title>
@@ -236,81 +235,40 @@
         packages = ["numpy", "scipy", "matplotlib"]
         [files]
             "http://localhost:8000/SJPlot.py" = "./SJPlot.py"
+
+
     </py-config>
 
-    <!-- Main thread Python that will control the worker -->
-    <script type="py">
-from pyscript import workers
-from js import window, console
-
-# Function that will be called by worker to update status
-def update_progress_from_worker(status_text):
-    """Called by worker via sync to update UI"""
-    window.updateProgressStatus(status_text)
-
-async def process_audio_wrapper():
-    """Called from JavaScript to start processing in worker"""
-    try:
-        console.log("Main thread: Getting worker reference...")
-        
-        # This will wait for the worker to be ready
-        try:
-            worker = await workers["audio-worker"]
-            console.log("Main thread: Worker obtained successfully")
-        except KeyError as e:
-            console.error(f"Worker 'audio-worker' not found. Available workers: {list(workers.keys())}")
-            raise
-        except Exception as e:
-            console.error(f"Error getting worker: {e}")
-            raise
-        
-        console.log("Main thread: Exposing sync functions...")
-        
-        # Expose function to worker so it can update status
-        worker.sync.updateProgressStatus = update_progress_from_worker
-        console.log("Main thread: Sync function exposed")
-        
-        console.log("Main thread: Calling process_audio...")
-        await worker.process_audio()
-        console.log("Main thread: Worker processing complete")
-    except Exception as e:
-        console.error(f"Main thread error: {e}")
-        import traceback
-        console.error(traceback.format_exc())
-
-# Expose to JavaScript
-window.pyProcessAudio = process_audio_wrapper
-console.log("Main thread: pyProcessAudio registered")
-    </script>
-
-    <!-- Worker that does the actual processing -->
-    <script type="py" worker name="audio-worker">
+    <py-script>
 import sys
-from js import console
-
-console.log("Worker: Initializing...")
+from js import console, window
 
 # Import SJPlot module
-console.log("Worker: Importing SJPlot...")
 import SJPlot
-console.log("Worker: SJPlot imported successfully")
 
-def process_audio():
-    """Process audio in worker thread"""
+def process_audio_if_ready():
     try:
-        console.log("Worker: Starting audio processing...")
+        # Debugging: Log the JavaScript variables
+        console.log("js_file0_data:", window.js_file0_data)
+        console.log("js_file1_data:", window.js_file1_data)
+
+        # Check if file data is available
+        if not hasattr(window, 'js_file0_data') or window.js_file0_data is None:
+            console.error("File 0 data is missing. Cannot process audio.")
+            return
+
+        # Call the main function from SJPlot module
         SJPlot.main()
-        console.log("Worker: Processing complete")
     except Exception as e:
-        console.error(f"Worker error: {e}")
+        console.error(f"Error processing audio: {e}")
         import traceback
         console.error(traceback.format_exc())
-        raise
 
-# Export function to main thread
-__export__ = ['process_audio']
-console.log("Worker: Ready and exported process_audio")
-    </script>
+# Attach the function to the window object for manual invocation
+window.pyProcessAudio = process_audio_if_ready
+
+
+    </py-script>
 
     <script>
         let file0Data = null, file1Data = null;
@@ -345,6 +303,30 @@ console.log("Worker: Ready and exported process_audio")
         // Test CDN connectivity first
         testPyScriptCDN();
         
+        // Listen for PyScript events properly
+        document.addEventListener('py:ready', function() {
+            console.log('py:ready event fired - PyScript is ready!');
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+            // Stop any ongoing polling
+            pollCount = 999; 
+        });
+        
+        document.addEventListener('py:all-done', function() {
+            console.log('py:all-done event fired - PyScript is ready!');
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+            // Stop any ongoing polling
+            pollCount = 999;
+        });
+        
+        // Also listen for other possible events
+        document.addEventListener('pyscript:ready', function() {
+            console.log('pyscript:ready event fired');
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+        });
+        
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, starting PyScript checks...');
         });
@@ -360,48 +342,62 @@ console.log("Worker: Ready and exported process_audio")
             
             pollCount++;
             console.log(`Poll ${pollCount}: Checking PyScript status...`);
+            console.log('window.pyscript exists:', !!window.pyscript);
             
-            // Check if main thread Python function is available
-            if (window.pyProcessAudio) {
-                console.log('PyScript main thread function found - ready!');
+            // Check for newer PyScript API
+            if (window.pyscript) {
+                console.log('window.pyscript keys:', Object.keys(window.pyscript));
+                // In newer versions, just having pyscript object means it's ready
+                console.log('PyScript object found - assuming ready!');
                 pyScriptReady = true;
-                
                 updateAnalyzeButtonState();
-                document.getElementById('pyscriptStatus').style.display = 'none';
                 return;
-            } else {
-                console.log('pyProcessAudio not yet available');
             }
             
-            if (pollCount < 60) {
+            // Check for Pyodide directly
+            if (window.pyodide && window.pyodide.runPython) {
+                console.log('Pyodide runPython available - PyScript is ready!');
+                pyScriptReady = true;
+                updateAnalyzeButtonState();
+                return;
+            }
+            
+            if (pollCount < 15) { // Reduced to 15 seconds since events should fire
                 setTimeout(pollForPyScript, 1000);
             } else {
-                console.error('PyScript polling timed out');
-                document.getElementById('pyscriptStatus').innerHTML = `
-                    PyScript initialization timed out.<br>
-                    <a href="javascript:location.reload()">Refresh page</a> or check console for errors.
-                `;
-                document.getElementById('pyscriptStatus').style.color = 'red';
+                console.error('PyScript polling timed out, but events may have fired');
+                if (!pyScriptReady) {
+                    document.getElementById('pyscriptStatus').innerHTML = `
+                        PyScript polling timed out, but it may still be working.<br>
+                        <a href="javascript:forcePyScriptReady()">Force Ready (recommended)</a> or 
+                        <a href="javascript:location.reload()">Refresh page</a>
+                    `;
+                    document.getElementById('pyscriptStatus').style.color = 'orange';
+                }
             }
         }
         
         // Also try the window load event as a fallback
         window.addEventListener('load', function() {
-            console.log('Window loaded, starting PyScript worker polling in 3 seconds...');
+            console.log('Window loaded, starting PyScript polling in 3 seconds...');
             setTimeout(pollForPyScript, 3000); // Start polling after 3 seconds
         });
         
-        // Add a debug function
+        // Add a manual override for testing
+        window.forcePyScriptReady = function() {
+            console.log('Forcing PyScript ready state...');
+            pyScriptReady = true;
+            updateAnalyzeButtonState();
+            document.getElementById('pyscriptStatus').style.display = 'none';
+            console.log('PyScript manually marked as ready');
+        };
+        
+        // Also add a debug function
         window.debugPyScript = function() {
             console.log('=== PyScript Debug Info ===');
             console.log('pyScriptReady:', pyScriptReady);
-            const pyWorker = document.querySelector('script[type="py"][worker]');
-            console.log('Worker element:', !!pyWorker);
-            if (pyWorker) {
-                console.log('Worker properties:', Object.keys(pyWorker));
-                console.log('Worker interpreter:', pyWorker.interpreter);
-            }
             console.log('window.pyscript:', window.pyscript);
+            console.log('window.pyodide:', window.pyodide);
             if (window.pyscript) {
                 console.log('pyscript keys:', Object.keys(window.pyscript));
             }
@@ -498,6 +494,12 @@ console.log("Worker: Ready and exported process_audio")
                 return;
             }
             
+            // Check if Python function is available
+            if (!window.pyProcessAudio) {
+                alert('Python environment not ready. Please wait a moment and try again.');
+                return;
+            }
+            
             document.getElementById('status').textContent = '🔄 Processing...';
             document.getElementById('status').className = 'processing';
             document.getElementById('loading').classList.add('active');
@@ -519,23 +521,15 @@ console.log("Worker: Ready and exported process_audio")
                 };
                 
                 try {
-                    console.log('Calling Python worker function...');
+                    console.log('Calling Python function directly...');
                     
-                    // Set global JS variables that Python can access via sync
+                    // Set global JS variables that Python can access
                     window.js_file0_data = file0Data.bytes;
                     window.js_file1_data = null; // Always null since we removed File 1 input
                     window.js_config = config;
                     
-                    // Call the Python wrapper function which will invoke the worker
-                    if (window.pyProcessAudio) {
-                        window.pyProcessAudio();
-                    } else {
-                        console.error('PyScript not ready');
-                        document.getElementById('status').textContent = '❌ Error: Python not initialized';
-                        document.getElementById('status').className = 'error';
-                        document.getElementById('loading').classList.remove('active');
-                        updateAnalyzeButtonState();
-                    }
+                    // Call the Python function asynchronously to allow UI updates
+                    window.pyProcessAudio();
                     
                 } catch (error) {
                     console.error('Analysis error:', error);

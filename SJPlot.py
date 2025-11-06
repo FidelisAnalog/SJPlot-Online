@@ -29,13 +29,8 @@ import argparse
 import configparser
 import io
 import base64
+from js import document, console
 import time
-
-# Import console for web environment (available in workers)
-try:
-    from js import console
-except ImportError:
-    console = None
 
 
 __version__ = "18.4.0"
@@ -43,20 +38,10 @@ __version__ = "18.4.0"
 
 # Try to import js module for web environment
 try:
-    from js import console
-    # Try to import document/window (main thread only)
-    try:
-        from js import document, window
-        _HAS_DOM_ACCESS = True
-    except ImportError:
-        # We're in a worker - no DOM access
-        _HAS_DOM_ACCESS = False
-        document = None
-        window = None
+    from js import document, console
     _IS_WEB_ENV = True
 except ImportError:
     _IS_WEB_ENV = False
-    _HAS_DOM_ACCESS = False
 
 
 class WebStatusHandler(logging.Handler):
@@ -74,28 +59,16 @@ class WebStatusHandler(logging.Handler):
             else:
                 status_text = msg
             
-            # Use pyscript.sync to call main thread function from worker
-            if not _HAS_DOM_ACCESS:
-                # We're in a worker - use pyscript to communicate with main thread
-                try:
-                    from pyscript import sync
-                    # Check if the function is available (it's exposed by main thread)
-                    if hasattr(sync, 'updateProgressStatus'):
-                        sync.updateProgressStatus(status_text)
-                        console.log(f"✓ Status sent from worker: '{status_text}'")
-                    else:
-                        # Function not yet exposed, just log to console
-                        console.log(f"⏳ Waiting for sync: '{status_text}'")
-                except Exception as e:
-                    console.error(f"Error sending status from worker: {e}")
-            else:
-                # We're on main thread - update directly
-                try:
-                    if hasattr(window, 'updateProgressStatus'):
-                        window.updateProgressStatus(status_text)
-                        console.log(f"✓ Status updated: '{status_text}'")
-                except Exception as e:
-                    console.error(f"Error updating status: {e}")
+            # Call JavaScript function to update UI (works across worker boundary)
+            try:
+                from js import window
+                if hasattr(window, 'updateProgressStatus'):
+                    window.updateProgressStatus(status_text)
+                    console.log(f"✓ Status sent to main thread: '{status_text}'")
+                else:
+                    console.log("✗ updateProgressStatus function not found on window")
+            except Exception as inner_e:
+                console.error(f"Error calling updateProgressStatus: {inner_e}")
                 
             # Also log full message to console for debugging
             console.log(msg)
@@ -802,13 +775,7 @@ def main():
 
     # Get file data based on environment with memory optimization
     if environment == 'web':
-        # Check if we're in a worker or main thread
-        try:
-            from js import window
-        except ImportError:
-            # We're in a worker, use pyscript.window instead
-            from pyscript import window
-        
+        from js import window
         # File 0 - More efficient data conversion with memory management
         file0_array = window.js_file0_data.to_py()
         file0_data = bytes(file0_array)
