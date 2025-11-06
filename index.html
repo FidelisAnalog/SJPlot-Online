@@ -141,19 +141,15 @@
         }
         .progress-bar {
             height: 100%;
-            width: 100%;
-            background: linear-gradient(90deg, 
-                #667eea 0%, 
-                #764ba2 25%, 
-                #667eea 50%, 
-                #764ba2 75%, 
-                #667eea 100%);
-            background-size: 300% 100%;
-            animation: progressSlide 2s linear infinite;
+            width: 30%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+            animation: progressMove 1.5s ease-in-out infinite;
         }
-        @keyframes progressSlide {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 100% 0%; }
+        @keyframes progressMove {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(350%); }
+            100% { transform: translateX(-100%); }
         }
         .loading { display: none; text-align: center; padding: 20px; }
         .loading.active { display: block; }
