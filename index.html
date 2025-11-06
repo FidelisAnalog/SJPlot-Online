@@ -712,6 +712,12 @@ window.pyProcessAudio = process_audio_if_ready
                 return;
             }
             
+            // Clear previous output and status when new file is selected
+            document.getElementById('output').innerHTML = '';
+            const statusEl = document.getElementById('status');
+            statusEl.className = '';
+            statusEl.innerHTML = '';
+            
             const fileName = file.name.toLowerCase();
             
             // Only accept WAV files
