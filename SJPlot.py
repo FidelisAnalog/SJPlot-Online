@@ -501,10 +501,20 @@ def get_audio(input_data, environment='standalone', extract_sweeps=0, test_recor
             size = len(input_data) if input_data else 0
         logger.info(f"Reading input for web environment ({size} bytes)")
         with io.BytesIO(input_data) as wav_io:
-            Fs, audio = read(wav_io)
+            # Suppress WAV file warnings about non-data chunks (metadata)
+            import warnings
+            from scipy.io.wavfile import WavFileWarning
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=WavFileWarning)
+                Fs, audio = read(wav_io)
     else:
         logger.info(f"Reading input from file path: {input_data}")
-        Fs, audio = read(input_data)
+        # Suppress WAV file warnings about non-data chunks (metadata)
+        import warnings
+        from scipy.io.wavfile import WavFileWarning
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=WavFileWarning)
+            Fs, audio = read(input_data)
 
 
 
