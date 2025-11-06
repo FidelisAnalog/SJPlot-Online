@@ -181,29 +181,6 @@
             <h3 style="margin-bottom: 20px;">⚙️ Configuration</h3>
             <div class="config-grid">
                 <div class="config-item">
-                    <label>Plot Style</label>
-                    <select id="plotStyle">
-                        <option value="1">Style 1 - Single Plot</option>
-                        <option value="2">Style 2 - Dual Y-Axis</option>
-                        <option value="3">Style 3 - Stacked Plots</option>
-                        <option value="4" selected>Style 4 - Dual + Zoom</option>
-                        <option value="5">Style 5 - Minimal</option>
-                    </select>
-                </div>
-                <div class="config-item">
-                    <label>RIAA Mode (Auto)</label>
-                    <select id="riaaMode" disabled>
-                        <option value="0">None</option>
-                        <option value="1">Bass Only</option>
-                        <option value="2">Treble Only</option>
-                        <option value="3" selected>Both</option>
-                    </select>
-                </div>
-                <div class="config-item">
-                    <label>Normalize (Hz)</label>
-                    <input type="number" id="normalize" value="1000" />
-                </div>
-                <div class="config-item">
                     <label>Test Record</label>
                     <select id="testRecord">
                         <option value="STR100" selected>STR 100</option>
@@ -226,9 +203,32 @@
                         <option value="withoutRIAA">Without RIAA</option>
                     </select>
                 </div>
+                <div class="config-item">
+                    <label>Plot Style</label>
+                    <select id="plotStyle">
+                        <option value="1">Style 1 - Single Plot</option>
+                        <option value="2">Style 2 - Dual Y-Axis</option>
+                        <option value="3">Style 3 - Stacked Plots</option>
+                        <option value="4" selected>Style 4 - Dual + Zoom</option>
+                        <option value="5">Style 5 - Minimal</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>RIAA Mode (Auto)</label>
+                    <select id="riaaMode" disabled>
+                        <option value="0">None</option>
+                        <option value="1">Bass Only</option>
+                        <option value="2">Treble Only</option>
+                        <option value="3" selected>Both</option>
+                    </select>
+                </div>
                 <div class="config-item checkbox-item">
                     <input type="checkbox" id="riaaInverse" checked disabled />
                     <label>Inverse RIAA (Auto)</label>
+                </div>
+                <div class="config-item">
+                    <label>Normalize (Hz)</label>
+                    <input type="number" id="normalize" value="1000" />
                 </div>
             </div>
         </div>
